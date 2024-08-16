@@ -63,6 +63,9 @@ fn main() {
     let gris = Material {
         diffuse: Color::new(190, 193, 200),
     };
+    let cafe = Material {
+        diffuse: Color::new(136, 76, 44),
+    };
 
     let objects = vec![
         //Cabeza
