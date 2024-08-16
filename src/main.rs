@@ -60,6 +60,9 @@ fn main() {
     let negro = Material {
         diffuse: Color::new(0, 0, 0),
     };
+    let gris = Material {
+        diffuse: Color::new(190, 193, 200),
+    };
 
     let objects = vec![
         //Cabeza
@@ -75,27 +78,32 @@ fn main() {
         },
         // Pupilas
         Sphere {
-            center: Vec3::new(0.3, 0.2, -1.0),
-            radius: 0.2,
+            center: Vec3::new(0.35, 0.5, -1.0),
+            radius: 0.23,
             material: blanco,
         },
         Sphere {
-            center: Vec3::new(-0.3, 0.2, -1.0),
-            radius: 0.2,
+            center: Vec3::new(-0.35, 0.5, -1.0),
+            radius: 0.23,
             material: blanco,
         },
         // Ojos
         Sphere {
-            center: Vec3::new(0.15, 0.08, -0.5),
+            center: Vec3::new(0.17, 0.24, -0.5),
             radius: 0.05,
             material: negro,
         },
         Sphere {
-            center: Vec3::new(-0.15, 0.08, -0.5),
+            center: Vec3::new(-0.17, 0.24, -0.5),
             radius: 0.05,
             material: negro,
         },
-        //
+        // hocico
+        Sphere {
+            center: Vec3::new(0.0, -0.17, -1.0),
+            radius: 0.4,
+            material: gris,
+        },
     ];
 
     let width = 1300;
