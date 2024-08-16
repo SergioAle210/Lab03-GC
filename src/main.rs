@@ -63,6 +63,9 @@ fn main() {
     let gris = Material {
         diffuse: Color::new(190, 193, 200),
     };
+    let rojo = Material {
+        diffuse: Color::new(210, 23, 23),
+    };
 
     let objects = vec![
         //Oreja izquierda
@@ -171,6 +174,12 @@ fn main() {
             center: Vec3::new(0.0, -0.06, -0.5),
             radius: 0.12,
             material: negro,
+        },
+        // Boca
+        Sphere {
+            center: Vec3::new(0.0, -0.24, -0.5),
+            radius: 0.04,
+            material: rojo,
         },
     ];
 
