@@ -1,7 +1,7 @@
 use std::fmt;
 use std::ops::{Add, Mul};
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
