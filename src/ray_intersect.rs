@@ -1,7 +1,7 @@
 use crate::color::Color;
 use nalgebra_glm::Vec3;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Material {
     pub diffuse: Color,
 }
