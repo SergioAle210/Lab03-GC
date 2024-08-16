@@ -26,7 +26,7 @@ fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere]) -> Colo
     }
 
     if !closest_intersect.is_intersecting {
-        return Color::new(4, 12, 36);
+        return Color::new(255, 255, 255);
     }
 
     closest_intersect.material.diffuse
@@ -63,11 +63,39 @@ fn main() {
     let gris = Material {
         diffuse: Color::new(190, 193, 200),
     };
-    let cafe = Material {
-        diffuse: Color::new(136, 76, 44),
-    };
 
     let objects = vec![
+        //Oreja izquierda
+        Sphere {
+            center: Vec3::new(-1.6, 2.2, -3.0),
+            radius: 0.8,
+            material: negro,
+        },
+        Sphere {
+            center: Vec3::new(-2.2, 1.8, -3.0),
+            radius: 0.8,
+            material: negro,
+        },
+        Sphere {
+            center: Vec3::new(-2.4, 0.8, -3.0),
+            radius: 0.8,
+            material: negro,
+        },
+        Sphere {
+            center: Vec3::new(-2.4, 0.0, -3.0),
+            radius: 0.8,
+            material: negro,
+        },
+        Sphere {
+            center: Vec3::new(-2.4, -0.8, -3.0),
+            radius: 0.8,
+            material: negro,
+        },
+        Sphere {
+            center: Vec3::new(-2.4, -1.8, -3.0),
+            radius: 0.8,
+            material: negro,
+        },
         //Cabeza
         Sphere {
             center: Vec3::new(-0.5, 0.5, -2.0),
