@@ -9,7 +9,6 @@ pub struct Color {
 }
 
 impl Color {
-    // Constructor que recibe valores RGB y hace clamping
     pub fn new(r: i32, g: i32, b: i32) -> Self {
         Self {
             r: Self::clamp(r),
@@ -28,7 +27,6 @@ impl Color {
         }
     }
 
-    // Constructor que recibe un valor hexadecimal u32
     pub fn from_hex(hex: u32) -> Color {
         Color {
             r: ((hex >> 16) & 0xFF) as u8,
@@ -37,20 +35,17 @@ impl Color {
         }
     }
 
-    // Método que retorna el valor hexadecimal u32 del color
     pub fn to_hex(&self) -> u32 {
         ((self.r as u32) << 16) | ((self.g as u32) << 8) | (self.b as u32)
     }
 }
 
-// Implementar el trait From para la estructura Color
 impl From<u32> for Color {
     fn from(hex: u32) -> Self {
         Color::from_hex(hex)
     }
 }
 
-// Implementar el trait Add para la estructura Color
 impl Add for Color {
     type Output = Self;
 
@@ -63,7 +58,6 @@ impl Add for Color {
     }
 }
 
-// Implementar el trait Mul para la estructura Color con un float
 impl Mul<f32> for Color {
     type Output = Self;
 
@@ -76,7 +70,6 @@ impl Mul<f32> for Color {
     }
 }
 
-// Implementar el trait Display para la estructura Color
 impl fmt::Display for Color {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Color(r: {}, g: {}, b: {})", self.r, self.g, self.b)
