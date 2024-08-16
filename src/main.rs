@@ -104,6 +104,12 @@ fn main() {
             radius: 0.4,
             material: gris,
         },
+        // nariz
+        Sphere {
+            center: Vec3::new(0.0, -0.06, -0.5),
+            radius: 0.12,
+            material: negro,
+        },
     ];
 
     let width = 1300;
