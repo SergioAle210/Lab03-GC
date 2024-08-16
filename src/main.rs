@@ -96,6 +96,37 @@ fn main() {
             radius: 0.8,
             material: negro,
         },
+        //Oreja derecha
+        Sphere {
+            center: Vec3::new(1.6, 2.2, -3.0),
+            radius: 0.8,
+            material: negro,
+        },
+        Sphere {
+            center: Vec3::new(2.2, 1.8, -3.0),
+            radius: 0.8,
+            material: negro,
+        },
+        Sphere {
+            center: Vec3::new(2.4, 0.8, -3.0),
+            radius: 0.8,
+            material: negro,
+        },
+        Sphere {
+            center: Vec3::new(2.4, 0.0, -3.0),
+            radius: 0.8,
+            material: negro,
+        },
+        Sphere {
+            center: Vec3::new(2.4, -0.8, -3.0),
+            radius: 0.8,
+            material: negro,
+        },
+        Sphere {
+            center: Vec3::new(2.4, -1.8, -3.0),
+            radius: 0.8,
+            material: negro,
+        },
         //Cabeza
         Sphere {
             center: Vec3::new(-0.5, 0.5, -2.0),
