@@ -64,37 +64,38 @@ fn main() {
     let objects = vec![
         //Cabeza
         Sphere {
-            center: Vec3::new(-0.5, 0.0, -2.0),
+            center: Vec3::new(-0.5, 0.5, -2.0),
             radius: 1.0,
             material: ivory,
         },
         Sphere {
-            center: Vec3::new(0.5, 0.0, -2.0),
+            center: Vec3::new(0.5, 0.5, -2.0),
             radius: 1.0,
             material: ivory,
         },
         // Pupilas
         Sphere {
-            center: Vec3::new(0.3, -0.2, -1.0),
+            center: Vec3::new(0.3, 0.2, -1.0),
             radius: 0.2,
             material: blanco,
         },
         Sphere {
-            center: Vec3::new(-0.3, -0.2, -1.0),
+            center: Vec3::new(-0.3, 0.2, -1.0),
             radius: 0.2,
             material: blanco,
         },
         // Ojos
         Sphere {
-            center: Vec3::new(-0.15, -0.15, -0.5),
+            center: Vec3::new(0.15, 0.08, -0.5),
             radius: 0.05,
             material: negro,
         },
         Sphere {
-            center: Vec3::new(-0.15, -0.15, -0.5),
+            center: Vec3::new(-0.15, 0.08, -0.5),
             radius: 0.05,
             material: negro,
         },
+        //
     ];
 
     let width = 1300;
