@@ -1,6 +1,7 @@
 mod camera;
 mod color;
 mod framebuffer;
+mod light;
 mod ray_intersect;
 mod sphere;
 mod texture;
@@ -11,12 +12,13 @@ use crate::ray_intersect::{Intersect, Material, RayIntersect};
 use crate::sphere::Sphere;
 use crate::texture::Texture;
 use camera::Camera;
+use light::Light;
 use minifb::{Window, WindowOptions};
 use nalgebra::center;
 use nalgebra_glm::Vec3;
 use rayon::prelude::*;
 
-fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere]) -> Color {
+fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere], light: &Light) -> Color {
     let mut closest_intersect = Intersect::empty();
     let mut zbuffer = f32::INFINITY;
 
@@ -36,10 +38,19 @@ fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere]) -> Colo
         return Color::new(0, 0, 0);
     }
 
-    closest_intersect.material.diffuse
+    // Calcular la dirección de la luz desde el punto de intersección
+    let light_dir = (light.position - closest_intersect.point).normalize();
+
+    // Calcular la intensidad de la luz utilizando la ley del coseno de Lambert
+    let intensity = light.intensity * f32::max(0.0, closest_intersect.normal.dot(&light_dir));
+
+    // Ajustar el color final en función de la intensidad de la luz
+    let final_color = closest_intersect.material.diffuse * intensity;
+
+    final_color
 }
 
-fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera) {
+fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, light: &Light) {
     let width = framebuffer.width;
     let height = framebuffer.height;
     let aspect_ratio = width as f32 / height as f32;
@@ -57,7 +68,7 @@ fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera) {
                 let world_direction = Vec3::new(screen_x, screen_y, -1.0);
                 let ray_direction = camera.basis_change(&world_direction);
 
-                let pixel_color = cast_ray(&camera.eye, &ray_direction, objects);
+                let pixel_color = cast_ray(&camera.eye, &ray_direction, objects, light);
                 row[x] = pixel_color;
             }
         });
@@ -65,10 +76,16 @@ fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera) {
 
 fn main() {
     let mut camera = Camera {
-        eye: Vec3::new(0.0, 0.0, 8.0),    // Posición de la cámara
+        eye: Vec3::new(0.0, 0.0, 5.0),    // Posición de la cámara
         center: Vec3::new(0.0, 0.0, 0.0), // Punto hacia el que está viendo la cámara
         up: Vec3::new(0.0, 8.0, 0.0),     // Vector "arriba" de la cámara
     };
+
+    let light = Light::new(
+        Vec3::new(5.0, 5.0, 5.0),
+        Color::new(255, 255, 255), // Color blanco para la luz
+        1.0,                       // Intensidad de la luz
+    );
 
     let ivory = Material {
         diffuse: Color::new(128, 128, 128),
@@ -127,7 +144,7 @@ fn main() {
 
         // Solo renderiza si hubo cambios
         if needs_render {
-            render(&mut framebuffer, &objects, &camera);
+            render(&mut framebuffer, &objects, &camera, &light);
             needs_render = false;
         }
 
