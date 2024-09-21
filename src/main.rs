@@ -45,6 +45,10 @@ fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere], light: 
         return Color::new(0, 90, 150);
     }
 
+    // Calcular la intensidad de la sombra
+    let shadow_intensity = cast_shadow(&closest_intersect, light, objects);
+    let light_intensity = light.intensity * (1.0 - shadow_intensity);
+
     // Calcular la dirección de la luz desde el punto de intersección
     let light_dir = (light.position - closest_intersect.point).normalize();
 
@@ -53,7 +57,7 @@ fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere], light: 
     let diffuse = closest_intersect.material.diffuse
         * closest_intersect.material.albedo[0] // Albedo difuso
         * diffuse_intensity
-        * light.intensity;
+        * light_intensity;
 
     // Calcular la dirección de la vista desde el punto de intersección hacia el origen del rayo
     let view_dir = (ray_origin - closest_intersect.point).normalize();
@@ -69,7 +73,7 @@ fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere], light: 
     let specular = light.color
         * closest_intersect.material.albedo[1] // Albedo especular
         * specular_intensity
-        * light.intensity;
+        * light_intensity;
 
     // Retornar la suma del componente difuso y el especular
     diffuse + specular
@@ -97,6 +101,27 @@ fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, li
                 row[x] = pixel_color;
             }
         });
+}
+
+fn cast_shadow(intersect: &Intersect, light: &Light, objects: &[Sphere]) -> f32 {
+    let light_dir = (light.position - intersect.point).normalize();
+    // Desplazamos el origen del rayo ligeramente utilizando la normal para evitar el problema de acné
+    let shadow_ray_origin = intersect.point + intersect.normal * 0.001;
+    let mut shadow_intensity = 0.0;
+    let light_distance = (light.position - shadow_ray_origin).magnitude();
+
+    for object in objects {
+        let shadow_intersect = object.ray_intersect(&shadow_ray_origin, &light_dir);
+        if shadow_intersect.is_intersecting {
+            let object_distance = shadow_intersect.distance;
+
+            // Calculamos la intensidad de la sombra basado en la distancia
+            shadow_intensity = 1.0 - (object_distance / light_distance).min(1.0);
+            break;
+        }
+    }
+
+    shadow_intensity
 }
 
 fn main() {
