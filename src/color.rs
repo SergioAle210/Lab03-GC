@@ -27,6 +27,10 @@ impl Color {
         }
     }
 
+    pub fn black() -> Self {
+        Color::new(0, 0, 0)
+    }
+
     pub fn from_hex(hex: u32) -> Color {
         Color {
             r: ((hex >> 16) & 0xFF) as u8,

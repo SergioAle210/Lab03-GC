@@ -24,7 +24,18 @@ fn reflect(incident: &Vec3, normal: &Vec3) -> Vec3 {
     incident - 2.0 * incident.dot(normal) * normal
 }
 
-fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere], light: &Light) -> Color {
+fn cast_ray(
+    ray_origin: &Vec3,
+    ray_direction: &Vec3,
+    objects: &[Sphere],
+    light: &Light,
+    depth: u32,
+) -> Color {
+    if depth > 3 {
+        // Limita la profundidad de reflexión para evitar recursión infinita
+        return Color::new(0, 90, 150); // Color del fondo (skybox)
+    }
+
     let mut closest_intersect = Intersect::empty();
     let mut zbuffer = f32::INFINITY;
 
@@ -33,50 +44,43 @@ fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere], light: 
         if tmp.is_intersecting && tmp.distance < zbuffer {
             zbuffer = tmp.distance;
             closest_intersect = tmp;
-            // Salida temprana: Si sabemos que no hay objetos más cercanos, salimos.
-            if zbuffer < 0.001 {
-                break;
-            }
         }
     }
 
     if !closest_intersect.is_intersecting {
-        // color de fondo azul
-        return Color::new(0, 90, 150);
+        return Color::new(53, 204, 207); // Color del fondo
     }
 
-    // Calcular la intensidad de la sombra
     let shadow_intensity = cast_shadow(&closest_intersect, light, objects);
     let light_intensity = light.intensity * (1.0 - shadow_intensity);
 
-    // Calcular la dirección de la luz desde el punto de intersección
     let light_dir = (light.position - closest_intersect.point).normalize();
-
-    // Calcular la intensidad difusa utilizando el producto punto
     let diffuse_intensity = closest_intersect.normal.dot(&light_dir).max(0.0).min(1.0);
     let diffuse = closest_intersect.material.diffuse
-        * closest_intersect.material.albedo[0] // Albedo difuso
+        * closest_intersect.material.albedo[0]
         * diffuse_intensity
         * light_intensity;
 
-    // Calcular la dirección de la vista desde el punto de intersección hacia el origen del rayo
     let view_dir = (ray_origin - closest_intersect.point).normalize();
-
-    // Calcular la dirección de reflexión de la luz
     let reflect_dir = reflect(&-light_dir, &closest_intersect.normal);
-
-    // Calcular la intensidad especular utilizando el producto punto elevado a la potencia especular del material
     let specular_intensity = view_dir
         .dot(&reflect_dir)
         .max(0.0)
         .powf(closest_intersect.material.specular);
-    let specular = light.color
-        * closest_intersect.material.albedo[1] // Albedo especular
-        * specular_intensity
-        * light_intensity;
+    let specular =
+        light.color * closest_intersect.material.albedo[1] * specular_intensity * light_intensity;
 
-    // Retornar la suma del componente difuso y el especular
-    diffuse + specular
+    // Manejo de la reflexión
+    let mut reflect_color = Color::black();
+    let reflectivity = closest_intersect.material.albedo[2];
+    if reflectivity > 0.0 {
+        let reflect_dir = reflect(&ray_direction, &closest_intersect.normal).normalize();
+        let reflect_origin = closest_intersect.point + closest_intersect.normal * 0.001;
+        reflect_color = cast_ray(&reflect_origin, &reflect_dir, objects, light, depth + 1);
+    }
+
+    // Combina la reflexión con los componentes difusos y especulares
+    (diffuse + specular) * (1.0 - reflectivity) + (reflect_color * reflectivity)
 }
 
 fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, light: &Light) {
@@ -97,7 +101,7 @@ fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, li
                 let world_direction = Vec3::new(screen_x, screen_y, -1.0);
                 let ray_direction = camera.basis_change(&world_direction);
 
-                let pixel_color = cast_ray(&camera.eye, &ray_direction, objects, light);
+                let pixel_color = cast_ray(&camera.eye, &ray_direction, objects, light, 0);
                 row[x] = pixel_color;
             }
         });
@@ -140,13 +144,19 @@ fn main() {
     let rubber = Material::new(
         Color::new(80, 0, 0),
         1.0,
-        [0.9, 0.1], // 90% difusa, 10% especular
+        [0.9, 0.1, 0.1], // Agrega 0.1 para reflejo
     );
 
     let ivory = Material::new(
         Color::new(100, 100, 80),
         50.0,
-        [0.6, 0.3], // 60% difusa, 30% especular
+        [0.6, 0.3, 0.5], // Agrega 0.5 para reflejo
+    );
+
+    let mirror = Material::new(
+        Color::new(255, 255, 255), // El color base es menos importante para un espejo, ya que refleja el entorno
+        50.0,                      // Alto valor especular para un reflejo brillante
+        [0.2, 0.2, 0.8], // El espejo es 100% reflectivo, sin componentes difusos o especulares propios
     );
 
     let objects = vec![
@@ -160,6 +170,11 @@ fn main() {
             center: Vec3::new(-2.2, 1.8, -3.0),
             radius: 0.8,
             material: rubber,
+        },
+        Sphere {
+            center: Vec3::new(2.5, 0.5, -4.0), // Posición de la esfera espejo
+            radius: 0.8,                       // Radio de la esfera espejo
+            material: mirror,                  // Material de espejo
         },
     ];
 

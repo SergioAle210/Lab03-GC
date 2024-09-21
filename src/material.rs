@@ -4,11 +4,11 @@ use crate::color::Color;
 pub struct Material {
     pub diffuse: Color,
     pub specular: f32,
-    pub albedo: [f32; 2], // Albedo para luz difusa y especular
+    pub albedo: [f32; 3], // Albedo para luz difusa y especular
 }
 
 impl Material {
-    pub fn new(diffuse: Color, specular: f32, albedo: [f32; 2]) -> Self {
+    pub fn new(diffuse: Color, specular: f32, albedo: [f32; 3]) -> Self {
         Material {
             diffuse,
             specular,
@@ -20,7 +20,7 @@ impl Material {
         Material {
             diffuse: Color::new(0, 0, 0),
             specular: 0.0,
-            albedo: [0.0, 0.0],
+            albedo: [0.0, 0.0, 0.0],
         }
     }
 }
