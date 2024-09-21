@@ -65,9 +65,9 @@ fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera) {
 
 fn main() {
     let mut camera = Camera {
-        eye: Vec3::new(-4.0, 5.0, 0.0),   // Posición de la cámara
+        eye: Vec3::new(0.0, 0.0, 8.0),    // Posición de la cámara
         center: Vec3::new(0.0, 0.0, 0.0), // Punto hacia el que está viendo la cámara
-        up: Vec3::new(0.0, 1.0, 0.0),     // Vector "arriba" de la cámara
+        up: Vec3::new(0.0, 8.0, 0.0),     // Vector "arriba" de la cámara
     };
 
     let ivory = Material {
