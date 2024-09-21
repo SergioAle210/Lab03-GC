@@ -35,19 +35,20 @@ fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere], light: 
     }
 
     if !closest_intersect.is_intersecting {
-        return Color::new(0, 0, 0);
+        return Color::new(0, 0, 0); // Fondo negro si no hay intersección
     }
 
     // Calcular la dirección de la luz desde el punto de intersección
     let light_dir = (light.position - closest_intersect.point).normalize();
 
-    // Calcular la intensidad de la luz utilizando la ley del coseno de Lambert
-    let intensity = light.intensity * f32::max(0.0, closest_intersect.normal.dot(&light_dir));
+    // Calcular la intensidad difusa utilizando el producto punto
+    let diffuse_intensity = f32::max(0.0, closest_intersect.normal.dot(&light_dir));
 
-    // Ajustar el color final en función de la intensidad de la luz
-    let final_color = closest_intersect.material.diffuse * intensity;
+    // Calcular el color difuso final
+    let diffuse = closest_intersect.material.diffuse * diffuse_intensity * light.intensity;
 
-    final_color
+    // Retornar el color difuso
+    diffuse
 }
 
 fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, light: &Light) {
