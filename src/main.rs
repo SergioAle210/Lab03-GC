@@ -49,8 +49,11 @@ fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere], light: 
     let light_dir = (light.position - closest_intersect.point).normalize();
 
     // Calcular la intensidad difusa utilizando el producto punto
-    let diffuse_intensity = f32::max(0.0, closest_intersect.normal.dot(&light_dir));
-    let diffuse = closest_intersect.material.diffuse * diffuse_intensity * light.intensity;
+    let diffuse_intensity = closest_intersect.normal.dot(&light_dir).max(0.0).min(1.0);
+    let diffuse = closest_intersect.material.diffuse
+        * closest_intersect.material.albedo[0] // Albedo difuso
+        * diffuse_intensity
+        * light.intensity;
 
     // Calcular la dirección de la vista desde el punto de intersección hacia el origen del rayo
     let view_dir = (ray_origin - closest_intersect.point).normalize();
@@ -59,9 +62,14 @@ fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere], light: 
     let reflect_dir = reflect(&-light_dir, &closest_intersect.normal);
 
     // Calcular la intensidad especular utilizando el producto punto elevado a la potencia especular del material
-    let specular_intensity =
-        f32::max(0.0, view_dir.dot(&reflect_dir)).powf(closest_intersect.material.specular);
-    let specular = light.color * specular_intensity * light.intensity;
+    let specular_intensity = view_dir
+        .dot(&reflect_dir)
+        .max(0.0)
+        .powf(closest_intersect.material.specular);
+    let specular = light.color
+        * closest_intersect.material.albedo[1] // Albedo especular
+        * specular_intensity
+        * light.intensity;
 
     // Retornar la suma del componente difuso y el especular
     diffuse + specular
@@ -104,8 +112,17 @@ fn main() {
         2.0,                       // Intensidad de la luz
     );
 
-    let ivory = Material::new(Color::new(128, 128, 128), 200.0);
-    let rojo = Material::new(Color::new(210, 23, 23), 10.0);
+    let rubber = Material::new(
+        Color::new(80, 0, 0),
+        1.0,
+        [0.9, 0.1], // 90% difusa, 10% especular
+    );
+
+    let ivory = Material::new(
+        Color::new(100, 100, 80),
+        50.0,
+        [0.6, 0.3], // 60% difusa, 30% especular
+    );
 
     let objects = vec![
         // Esferas de ejemplo
@@ -117,7 +134,7 @@ fn main() {
         Sphere {
             center: Vec3::new(-2.2, 1.8, -3.0),
             radius: 0.8,
-            material: rojo,
+            material: rubber,
         },
     ];
 
