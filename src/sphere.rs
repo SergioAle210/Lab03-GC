@@ -37,6 +37,13 @@ impl RayIntersect for Sphere {
         }
 
         let distance = if t0 < 0.0 { t1 } else { t0 };
-        Intersect::new(distance, self.material.clone())
+
+        // Calcular el punto de impacto
+        let point = ray_origin + ray_direction * distance;
+
+        // Calcular la normal en el punto de impacto
+        let normal = (point - self.center).normalize();
+
+        Intersect::new(point, normal, distance, self.material.clone())
     }
 }

@@ -91,8 +91,8 @@ fn main() {
         },
     ];
 
-    let width = 650; // Reduce el tamaño a la mitad
-    let height = 450;
+    let width = 1300; // Reduce el tamaño a la mitad
+    let height = 900;
     let mut framebuffer = Framebuffer::new(width, height);
 
     let mut window = Window::new(
