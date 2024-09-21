@@ -1,4 +1,5 @@
-use crate::ray_intersect::{Intersect, Material, RayIntersect};
+use crate::material::Material;
+use crate::ray_intersect::{Intersect, RayIntersect};
 use nalgebra_glm::Vec3;
 
 pub struct Sphere {

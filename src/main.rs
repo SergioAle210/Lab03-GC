@@ -2,21 +2,27 @@ mod camera;
 mod color;
 mod framebuffer;
 mod light;
+mod material;
 mod ray_intersect;
 mod sphere;
 mod texture;
 
 use crate::color::Color;
 use crate::framebuffer::Framebuffer;
-use crate::ray_intersect::{Intersect, Material, RayIntersect};
+use crate::ray_intersect::{Intersect, RayIntersect};
 use crate::sphere::Sphere;
 use crate::texture::Texture;
 use camera::Camera;
 use light::Light;
+use material::Material;
 use minifb::{Window, WindowOptions};
 use nalgebra::center;
 use nalgebra_glm::Vec3;
 use rayon::prelude::*;
+
+fn reflect(incident: &Vec3, normal: &Vec3) -> Vec3 {
+    incident - 2.0 * incident.dot(normal) * normal
+}
 
 fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere], light: &Light) -> Color {
     let mut closest_intersect = Intersect::empty();
@@ -35,7 +41,8 @@ fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere], light: 
     }
 
     if !closest_intersect.is_intersecting {
-        return Color::new(0, 0, 0); // Fondo negro si no hay intersección
+        // color de fondo azul
+        return Color::new(0, 90, 150);
     }
 
     // Calcular la dirección de la luz desde el punto de intersección
@@ -43,12 +50,21 @@ fn cast_ray(ray_origin: &Vec3, ray_direction: &Vec3, objects: &[Sphere], light: 
 
     // Calcular la intensidad difusa utilizando el producto punto
     let diffuse_intensity = f32::max(0.0, closest_intersect.normal.dot(&light_dir));
-
-    // Calcular el color difuso final
     let diffuse = closest_intersect.material.diffuse * diffuse_intensity * light.intensity;
 
-    // Retornar el color difuso
-    diffuse
+    // Calcular la dirección de la vista desde el punto de intersección hacia el origen del rayo
+    let view_dir = (ray_origin - closest_intersect.point).normalize();
+
+    // Calcular la dirección de reflexión de la luz
+    let reflect_dir = reflect(&-light_dir, &closest_intersect.normal);
+
+    // Calcular la intensidad especular utilizando el producto punto elevado a la potencia especular del material
+    let specular_intensity =
+        f32::max(0.0, view_dir.dot(&reflect_dir)).powf(closest_intersect.material.specular);
+    let specular = light.color * specular_intensity * light.intensity;
+
+    // Retornar la suma del componente difuso y el especular
+    diffuse + specular
 }
 
 fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, light: &Light) {
@@ -83,17 +99,13 @@ fn main() {
     };
 
     let light = Light::new(
-        Vec3::new(5.0, 5.0, 5.0),
+        Vec3::new(5.0, 10.0, 5.0),
         Color::new(255, 255, 255), // Color blanco para la luz
-        1.0,                       // Intensidad de la luz
+        2.0,                       // Intensidad de la luz
     );
 
-    let ivory = Material {
-        diffuse: Color::new(128, 128, 128),
-    };
-    let rojo = Material {
-        diffuse: Color::new(210, 23, 23),
-    };
+    let ivory = Material::new(Color::new(128, 128, 128), 200.0);
+    let rojo = Material::new(Color::new(210, 23, 23), 10.0);
 
     let objects = vec![
         // Esferas de ejemplo
