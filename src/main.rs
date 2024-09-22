@@ -1,11 +1,12 @@
 mod camera;
 mod color;
+mod cube;
 mod framebuffer;
 mod light;
 mod material;
 mod ray_intersect;
 mod sphere;
-mod texture;
+mod texture; // Importa tu nuevo módulo
 
 use crate::color::Color;
 use crate::framebuffer::Framebuffer;
@@ -13,13 +14,14 @@ use crate::ray_intersect::{Intersect, RayIntersect};
 use crate::sphere::Sphere;
 use crate::texture::Texture;
 use camera::Camera;
+use cube::Cube;
 use light::Light;
 use material::Material;
 use minifb::{Window, WindowOptions};
 use nalgebra_glm::Vec3;
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
-use std::sync::Arc;
+use std::sync::Arc; // Importa tu nuevo módulo
 
 static WALL1: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/OIP.jpeg")));
 
@@ -94,7 +96,7 @@ fn cast_ray(
     let mut reflect_color = Color::new(0, 0, 0); // Por defecto es negro
     let reflectivity = closest_intersect.material.albedo[2];
     if reflectivity > 0.0 {
-        let bias = 1e-4; // Ajusta el desplazamiento
+        let bias = 0.001; // Ajusta el desplazamiento
         let reflect_dir = reflect(&ray_direction, &closest_intersect.normal).normalize();
         let reflect_origin = closest_intersect.point + closest_intersect.normal * bias;
         reflect_color = cast_ray(&reflect_origin, &reflect_dir, objects, light, depth + 1);
@@ -104,7 +106,7 @@ fn cast_ray(
     let mut refract_color = Color::new(0, 0, 0); // Por defecto es negro
     let transparency = closest_intersect.material.albedo[3];
     if transparency > 0.0 {
-        let bias = 1e-4; // Ajusta el desplazamiento
+        let bias = 0.001; // Ajusta el desplazamiento
         let refract_dir = refract(
             &ray_direction,
             &closest_intersect.normal,
@@ -147,7 +149,7 @@ fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, li
 fn cast_shadow(intersect: &Intersect, light: &Light, objects: &[Sphere]) -> f32 {
     let light_dir = (light.position - intersect.point).normalize();
     // Desplazamos el origen del rayo ligeramente utilizando la normal para evitar el problema de acné
-    let shadow_ray_origin = intersect.point + intersect.normal * 0.0001;
+    let shadow_ray_origin = intersect.point + intersect.normal * 0.001;
     let mut shadow_intensity = 0.0;
     let light_distance = (light.position - shadow_ray_origin).magnitude();
 
