@@ -1,5 +1,5 @@
 extern crate nalgebra_glm;
-use nalgebra_glm::{rotate_normalized_axis, Mat4, Vec3};
+use nalgebra_glm::Vec3;
 
 pub struct Camera {
     pub eye: Vec3,    // Posición de la cámara en el espacio del mundo
@@ -10,18 +10,6 @@ pub struct Camera {
 impl Camera {
     pub fn new(eye: Vec3, center: Vec3, up: Vec3) -> Self {
         Self { eye, center, up }
-    }
-
-    pub fn direction(&self) -> Vec3 {
-        (self.center - self.eye).normalize()
-    }
-
-    pub fn right(&self) -> Vec3 {
-        self.direction().cross(&self.up).normalize()
-    }
-
-    pub fn true_up(&self) -> Vec3 {
-        self.right().cross(&self.direction()).normalize()
     }
 
     pub fn basis_change(&self, vector: &Vec3) -> Vec3 {
