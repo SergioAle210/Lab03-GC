@@ -87,7 +87,7 @@ fn cast_ray(
     let reflectivity = closest_intersect.material.albedo[2];
     if reflectivity > 0.0 {
         let reflect_dir = reflect(&ray_direction, &closest_intersect.normal).normalize();
-        let reflect_origin = closest_intersect.point + closest_intersect.normal * 0.001; // Desplazamiento para evitar acné
+        let reflect_origin = closest_intersect.point + closest_intersect.normal * 0.0001; // Desplazamiento para evitar acné
         reflect_color = cast_ray(&reflect_origin, &reflect_dir, objects, light, depth + 1);
     }
 
@@ -100,7 +100,7 @@ fn cast_ray(
             &closest_intersect.normal,
             closest_intersect.material.refractive_index,
         );
-        let refract_origin = closest_intersect.point - closest_intersect.normal * 0.001; // Desplazamiento para evitar acné
+        let refract_origin = closest_intersect.point - closest_intersect.normal * 0.0001; // Desplazamiento para evitar acné
         refract_color = cast_ray(&refract_origin, &refract_dir, objects, light, depth + 1);
     }
 
@@ -137,7 +137,7 @@ fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, li
 fn cast_shadow(intersect: &Intersect, light: &Light, objects: &[Sphere]) -> f32 {
     let light_dir = (light.position - intersect.point).normalize();
     // Desplazamos el origen del rayo ligeramente utilizando la normal para evitar el problema de acné
-    let shadow_ray_origin = intersect.point + intersect.normal * 0.001;
+    let shadow_ray_origin = intersect.point + intersect.normal * 0.0001;
     let mut shadow_intensity = 0.0;
     let light_distance = (light.position - shadow_ray_origin).magnitude();
 
