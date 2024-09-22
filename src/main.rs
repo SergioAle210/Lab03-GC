@@ -31,14 +31,15 @@ fn cast_ray(
     light: &Light,
     depth: u32,
 ) -> Color {
+    // Limitar la recursión a una cierta profundidad
     if depth > 3 {
-        // Limita la profundidad de reflexión para evitar recursión infinita
-        return Color::new(0, 90, 150); // Color del fondo (skybox)
+        return Color::new(0, 90, 150); // Color de fondo o "skybox"
     }
 
     let mut closest_intersect = Intersect::empty();
     let mut zbuffer = f32::INFINITY;
 
+    // Buscar la intersección más cercana
     for object in objects {
         let tmp = object.ray_intersect(ray_origin, ray_direction);
         if tmp.is_intersecting && tmp.distance < zbuffer {
@@ -48,39 +49,65 @@ fn cast_ray(
     }
 
     if !closest_intersect.is_intersecting {
-        return Color::new(53, 204, 207); // Color del fondo
+        return Color::new(0, 90, 150); // Retornar el color de fondo si no hay intersección
     }
 
+    // Calcular la intensidad de la sombra
     let shadow_intensity = cast_shadow(&closest_intersect, light, objects);
     let light_intensity = light.intensity * (1.0 - shadow_intensity);
 
+    // Calcular la dirección de la luz desde el punto de intersección
     let light_dir = (light.position - closest_intersect.point).normalize();
+
+    // Calcular la intensidad difusa utilizando el producto punto
     let diffuse_intensity = closest_intersect.normal.dot(&light_dir).max(0.0).min(1.0);
     let diffuse = closest_intersect.material.diffuse
-        * closest_intersect.material.albedo[0]
+        * closest_intersect.material.albedo[0] // Albedo difuso
         * diffuse_intensity
         * light_intensity;
 
+    // Calcular la dirección de la vista desde el punto de intersección hacia el origen del rayo
     let view_dir = (ray_origin - closest_intersect.point).normalize();
+
+    // Calcular la dirección de reflexión de la luz
     let reflect_dir = reflect(&-light_dir, &closest_intersect.normal);
+
+    // Calcular la intensidad especular utilizando el producto punto elevado a la potencia especular del material
     let specular_intensity = view_dir
         .dot(&reflect_dir)
         .max(0.0)
         .powf(closest_intersect.material.specular);
-    let specular =
-        light.color * closest_intersect.material.albedo[1] * specular_intensity * light_intensity;
+    let specular = light.color
+        * closest_intersect.material.albedo[1] // Albedo especular
+        * specular_intensity
+        * light_intensity;
 
-    // Manejo de la reflexión
-    let mut reflect_color = Color::black();
+    // Calcular la componente de reflexión
+    let mut reflect_color = Color::new(0, 0, 0); // Por defecto es negro
     let reflectivity = closest_intersect.material.albedo[2];
     if reflectivity > 0.0 {
         let reflect_dir = reflect(&ray_direction, &closest_intersect.normal).normalize();
-        let reflect_origin = closest_intersect.point + closest_intersect.normal * 0.001;
+        let reflect_origin = closest_intersect.point + closest_intersect.normal * 0.001; // Desplazamiento para evitar acné
         reflect_color = cast_ray(&reflect_origin, &reflect_dir, objects, light, depth + 1);
     }
 
-    // Combina la reflexión con los componentes difusos y especulares
-    (diffuse + specular) * (1.0 - reflectivity) + (reflect_color * reflectivity)
+    // Calcular la componente de refracción
+    let mut refract_color = Color::new(0, 0, 0); // Por defecto es negro
+    let transparency = closest_intersect.material.albedo[3];
+    if transparency > 0.0 {
+        let refract_dir = refract(
+            &ray_direction,
+            &closest_intersect.normal,
+            closest_intersect.material.refractive_index,
+        );
+        let refract_origin = closest_intersect.point - closest_intersect.normal * 0.001; // Desplazamiento para evitar acné
+        refract_color = cast_ray(&refract_origin, &refract_dir, objects, light, depth + 1);
+    }
+
+    // Combinación final del color: difuso + especular + reflejo + refracción
+    (diffuse + specular) * (1.0 - reflectivity - transparency)
+        + (reflect_color * reflectivity)
+        + (refract_color * transparency)
 }
 
 fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, light: &Light) {
@@ -128,6 +155,33 @@ fn cast_shadow(intersect: &Intersect, light: &Light, objects: &[Sphere]) -> f32 
     shadow_intensity
 }
 
+fn refract(incident: &Vec3, normal: &Vec3, eta_t: f32) -> Vec3 {
+    let cosi = -incident.dot(normal).max(-1.0).min(1.0);
+
+    let (n_cosi, eta, n_normal);
+
+    if cosi < 0.0 {
+        // El rayo está entrando en el objeto
+        n_cosi = -cosi;
+        eta = 1.0 / eta_t;
+        n_normal = -normal;
+    } else {
+        // El rayo está saliendo del objeto
+        n_cosi = cosi;
+        eta = eta_t;
+        n_normal = *normal;
+    }
+
+    let k = 1.0 - eta * eta * (1.0 - n_cosi * n_cosi);
+
+    if k < 0.0 {
+        // Reflexión interna total
+        reflect(incident, &n_normal)
+    } else {
+        eta * incident + (eta * n_cosi - k.sqrt()) * n_normal
+    }
+}
+
 fn main() {
     let mut camera = Camera {
         eye: Vec3::new(0.0, 0.0, 5.0),    // Posición de la cámara
@@ -142,21 +196,31 @@ fn main() {
     );
 
     let rubber = Material::new(
-        Color::new(80, 0, 0),
-        1.0,
-        [0.9, 0.1, 0.1], // Agrega 0.1 para reflejo
+        Color::new(150, 40, 40), // Un rojo más vivo para que el caucho sea más visible
+        10.0,                    // Menor especularidad, ya que el caucho no es tan brillante
+        [0.8, 0.2, 0.1, 0.0],    // Más difuso, casi sin reflexión y sin transparencia
+        1.1,                     // Índice de refracción del caucho
     );
 
     let ivory = Material::new(
-        Color::new(100, 100, 80),
-        50.0,
-        [0.6, 0.3, 0.5], // Agrega 0.5 para reflejo
+        Color::new(220, 220, 200), // Un tono más claro y cálido para el marfil
+        30.0,                      // Moderada especularidad
+        [0.5, 0.4, 0.3, 0.0], // Mezcla equilibrada de componentes difusos y especulares, sin transparencia
+        1.3,                  // Índice de refracción del marfil
     );
 
     let mirror = Material::new(
-        Color::new(255, 255, 255), // El color base es menos importante para un espejo, ya que refleja el entorno
-        50.0,                      // Alto valor especular para un reflejo brillante
-        [0.2, 0.2, 0.8], // El espejo es 100% reflectivo, sin componentes difusos o especulares propios
+        Color::new(255, 255, 255), // Color base blanco
+        1000.0,                    // Alta especularidad para un reflejo casi perfecto
+        [0.0, 1.0, 0.9, 0.0],      // Casi todo es reflexión especular
+        1.0,                       // Un índice de refracción estándar, ya que es un espejo
+    );
+
+    let glass = Material::new(
+        Color::new(200, 200, 255),
+        125.0,
+        [0.0, 0.5, 0.1, 0.8], // Difusa, especular, reflejo, transparencia
+        1.5,                  // Índice de refracción típico del vidrio
     );
 
     let objects = vec![
