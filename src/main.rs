@@ -96,7 +96,7 @@ fn cast_ray(
     let mut reflect_color = Color::new(0, 0, 0); // Por defecto es negro
     let reflectivity = closest_intersect.material.albedo[2];
     if reflectivity > 0.0 {
-        let bias = 0.001; // Ajusta el desplazamiento
+        let bias = f32::EPSILON.max(0.01 * closest_intersect.distance); // Ajusta el desplazamiento
         let reflect_dir = reflect(&ray_direction, &closest_intersect.normal).normalize();
         let reflect_origin = closest_intersect.point + closest_intersect.normal * bias;
         reflect_color = cast_ray(&reflect_origin, &reflect_dir, objects, light, depth + 1);
@@ -106,7 +106,7 @@ fn cast_ray(
     let mut refract_color = Color::new(0, 0, 0); // Por defecto es negro
     let transparency = closest_intersect.material.albedo[3];
     if transparency > 0.0 {
-        let bias = 0.001; // Ajusta el desplazamiento
+        let bias = f32::EPSILON.max(0.01 * closest_intersect.distance); // Ajusta el desplazamiento
         let refract_dir = refract(
             &ray_direction,
             &closest_intersect.normal,
@@ -148,8 +148,8 @@ fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, li
 
 fn cast_shadow(intersect: &Intersect, light: &Light, objects: &[Sphere]) -> f32 {
     let light_dir = (light.position - intersect.point).normalize();
-    // Desplazamos el origen del rayo ligeramente utilizando la normal para evitar el problema de acné
-    let shadow_ray_origin = intersect.point + intersect.normal * 0.001;
+    let bias = 0.05; // Ajusta el desplazamiento para evitar acné
+    let shadow_ray_origin = intersect.point + intersect.normal * bias;
     let mut shadow_intensity = 0.0;
     let light_distance = (light.position - shadow_ray_origin).magnitude();
 
