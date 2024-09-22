@@ -16,9 +16,12 @@ use camera::Camera;
 use light::Light;
 use material::Material;
 use minifb::{Window, WindowOptions};
-use nalgebra::center;
 use nalgebra_glm::Vec3;
+use once_cell::sync::Lazy;
 use rayon::prelude::*;
+use std::sync::Arc;
+
+static WALL1: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/OIP.jpeg")));
 
 fn reflect(incident: &Vec3, normal: &Vec3) -> Vec3 {
     incident - 2.0 * incident.dot(normal) * normal
@@ -52,6 +55,11 @@ fn cast_ray(
         return Color::new(0, 90, 150); // Retornar el color de fondo si no hay intersección
     }
 
+    // Obtener el color difuso del material, considerando si tiene una textura o es un color plano
+    let diffuse_color = closest_intersect
+        .material
+        .get_diffuse_color(closest_intersect.u, closest_intersect.v);
+
     // Calcular la intensidad de la sombra
     let shadow_intensity = cast_shadow(&closest_intersect, light, objects);
     let light_intensity = light.intensity * (1.0 - shadow_intensity);
@@ -61,7 +69,7 @@ fn cast_ray(
 
     // Calcular la intensidad difusa utilizando el producto punto
     let diffuse_intensity = closest_intersect.normal.dot(&light_dir).max(0.0).min(1.0);
-    let diffuse = closest_intersect.material.diffuse
+    let diffuse = diffuse_color
         * closest_intersect.material.albedo[0] // Albedo difuso
         * diffuse_intensity
         * light_intensity;
@@ -195,11 +203,20 @@ fn main() {
         2.0,                       // Intensidad de la luz
     );
 
+    let material_con_textura = Material::new(
+        Color::new(255, 255, 255),
+        500.0,
+        [0.8, 0.2, 0.0, 0.0],
+        1.5,
+        Some(WALL1.clone()),
+    );
+
     let rubber = Material::new(
         Color::new(150, 40, 40), // Un rojo más vivo para que el caucho sea más visible
         10.0,                    // Menor especularidad, ya que el caucho no es tan brillante
         [0.8, 0.2, 0.1, 0.0],    // Más difuso, casi sin reflexión y sin transparencia
         1.1,                     // Índice de refracción del caucho
+        None,
     );
 
     let ivory = Material::new(
@@ -207,6 +224,7 @@ fn main() {
         30.0,                      // Moderada especularidad
         [0.5, 0.4, 0.3, 0.0], // Mezcla equilibrada de componentes difusos y especulares, sin transparencia
         1.3,                  // Índice de refracción del marfil
+        None,
     );
 
     let mirror = Material::new(
@@ -214,6 +232,7 @@ fn main() {
         1000.0,                    // Alta especularidad para un reflejo casi perfecto
         [0.0, 1.0, 0.9, 0.0],      // Casi todo es reflexión especular
         1.0,                       // Un índice de refracción estándar, ya que es un espejo
+        None,
     );
 
     let glass = Material::new(
@@ -221,6 +240,7 @@ fn main() {
         125.0,
         [0.0, 0.5, 0.1, 0.8], // Difusa, especular, reflejo, transparencia
         1.5,                  // Índice de refracción típico del vidrio
+        None,
     );
 
     let objects = vec![
@@ -228,7 +248,7 @@ fn main() {
         Sphere {
             center: Vec3::new(0.0, 0.0, 0.0),
             radius: 0.8,
-            material: ivory,
+            material: material_con_textura,
         },
         Sphere {
             center: Vec3::new(-2.2, 1.8, -3.0),

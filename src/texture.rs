@@ -1,9 +1,9 @@
 extern crate image;
 
 use crate::color::Color;
-use image::GenericImageView;
 use image::{ImageReader, RgbImage};
 
+#[derive(Debug, Clone)]
 pub struct Texture {
     image: RgbImage,
     pub width: u32,

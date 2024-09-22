@@ -16,6 +16,21 @@ impl Sphere {
             material,
         }
     }
+
+    pub fn get_uv(&self, point: &Vec3) -> (f32, f32) {
+        // Normalizar el vector desde el centro de la esfera al punto de intersección
+        let r = (point - self.center).normalize();
+
+        // Calcular θ (theta) y φ (phi)
+        let theta = r.z.atan2(r.x); // Arctan(z / x)
+        let phi = r.y.asin(); // Arcsin(y)
+
+        // Convertir los ángulos a coordenadas UV
+        let u = 0.5 + theta / (2.0 * std::f32::consts::PI);
+        let v = 0.5 - phi / std::f32::consts::PI;
+
+        (u, v)
+    }
 }
 
 impl RayIntersect for Sphere {
@@ -45,6 +60,9 @@ impl RayIntersect for Sphere {
         // Calcular la normal en el punto de impacto
         let normal = (point - self.center).normalize();
 
-        Intersect::new(point, normal, distance, self.material.clone())
+        // Obtener las coordenadas UV
+        let (u, v) = self.get_uv(&point);
+
+        Intersect::new(point, normal, distance, self.material.clone(), u, v)
     }
 }
