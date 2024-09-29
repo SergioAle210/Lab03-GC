@@ -38,11 +38,10 @@ fn cast_ray(
     ray_origin: &Vec3,
     ray_direction: &Vec3,
     objects: &[Box<dyn RayIntersect>],
-    light: &Light,
+    lights: &[Light], // Cambiar a un vector de luces
     depth: u32,
     use_normal_map: bool, // Añade un parámetro para controlar si se usa el mapeo de normales
 ) -> Color {
-    // Limitar la recursión a una cierta profundidad
     if depth > 3 {
         return Color::new(0, 90, 150); // Color de fondo o "skybox"
     }
@@ -50,7 +49,6 @@ fn cast_ray(
     let mut closest_intersect = Intersect::empty();
     let mut zbuffer = f32::INFINITY;
 
-    // Buscar la intersección más cercana
     for object in objects {
         let tmp = object.ray_intersect(ray_origin, ray_direction);
         if tmp.is_intersecting && tmp.distance < zbuffer {
@@ -60,17 +58,15 @@ fn cast_ray(
     }
 
     if !closest_intersect.is_intersecting {
-        return Color::new(0, 90, 150); // Retornar el color de fondo si no hay intersección
+        return Color::new(0, 90, 150);
     }
 
-    let bias = 0.01; // Increase the bias to ensure no z-fighting
+    let bias = 0.01;
     closest_intersect.point += closest_intersect.normal * bias;
 
     let normal = closest_intersect.normal;
 
-    // Determina si se debe usar el color basado en la normal o la textura
     let diffuse_color = if use_normal_map {
-        // Convertir las componentes de la normal de [-1, 1] a [0, 255] para los valores RGB
         let r = ((normal.x + 1.0) * 0.5 * 255.0) as i32;
         let g = ((normal.y + 1.0) * 0.5 * 255.0) as i32;
         let b = ((normal.z + 1.0) * 0.5 * 255.0) as i32;
@@ -81,55 +77,53 @@ fn cast_ray(
             .get_diffuse_color(closest_intersect.u, closest_intersect.v)
     };
 
-    // Calcular la intensidad de la sombra
-    let shadow_intensity = cast_shadow(&closest_intersect, light, objects);
-    let light_intensity = light.intensity * (1.0 - shadow_intensity);
+    let mut final_color = Color::new(0, 0, 0);
 
-    // Calcular la dirección de la luz desde el punto de intersección
-    let light_dir = (light.position - closest_intersect.point).normalize();
+    // Iterar sobre todas las fuentes de luz
+    for light in lights {
+        let shadow_intensity = cast_shadow(&closest_intersect, light, objects);
+        let light_intensity = light.intensity * (1.0 - shadow_intensity);
 
-    // Calcular la intensidad difusa utilizando el producto punto
-    let diffuse_intensity = normal.dot(&light_dir).max(0.0).min(1.0);
-    let diffuse = diffuse_color
-        * closest_intersect.material.albedo[0] // Albedo difuso
-        * diffuse_intensity
-        * light_intensity;
+        let light_dir = (light.position - closest_intersect.point).normalize();
 
-    // Calcular la dirección de la vista desde el punto de intersección hacia el origen del rayo
-    let view_dir = (ray_origin - closest_intersect.point).normalize();
+        let diffuse_intensity = normal.dot(&light_dir).max(0.0).min(1.0);
+        let diffuse = diffuse_color
+            * closest_intersect.material.albedo[0]
+            * diffuse_intensity
+            * light_intensity;
 
-    // Calcular la dirección de reflexión de la luz
-    let reflect_dir = reflect(&-light_dir, &normal);
+        let view_dir = (ray_origin - closest_intersect.point).normalize();
+        let reflect_dir = reflect(&-light_dir, &normal);
 
-    // Calcular la intensidad especular utilizando el producto punto elevado a la potencia especular del material
-    let specular_intensity = view_dir
-        .dot(&reflect_dir)
-        .max(0.0)
-        .powf(closest_intersect.material.specular);
-    let specular = light.color
-        * closest_intersect.material.albedo[1] // Albedo especular
-        * specular_intensity
-        * light_intensity;
+        let specular_intensity = view_dir
+            .dot(&reflect_dir)
+            .max(0.0)
+            .powf(closest_intersect.material.specular);
+        let specular = light.color
+            * closest_intersect.material.albedo[1]
+            * specular_intensity
+            * light_intensity;
 
-    // Calcular la componente de reflexión
-    let mut reflect_color = Color::new(0, 0, 0); // Por defecto es negro
+        final_color += diffuse + specular;
+    }
+
     let reflectivity = closest_intersect.material.albedo[2];
+    let transparency = closest_intersect.material.albedo[3];
+
     if reflectivity > 0.0 {
         let reflect_dir = reflect(&ray_direction, &normal).normalize();
         let reflect_origin = closest_intersect.point + normal * bias;
-        reflect_color = cast_ray(
+        let reflect_color = cast_ray(
             &reflect_origin,
             &reflect_dir,
             objects,
-            light,
+            lights,
             depth + 1,
             use_normal_map,
         );
+        final_color += reflect_color * reflectivity;
     }
 
-    // Calcular la componente de refracción
-    let mut refract_color = Color::new(0, 0, 0); // Por defecto es negro
-    let transparency = closest_intersect.material.albedo[3];
     if transparency > 0.0 {
         let refract_dir = refract(
             &ray_direction,
@@ -137,28 +131,26 @@ fn cast_ray(
             closest_intersect.material.refractive_index,
         );
         let refract_origin = closest_intersect.point - normal * bias;
-        refract_color = cast_ray(
+        let refract_color = cast_ray(
             &refract_origin,
             &refract_dir,
             objects,
-            light,
+            lights,
             depth + 1,
             use_normal_map,
         );
+        final_color += refract_color * transparency;
     }
 
-    // Combinación final del color: difuso + especular + reflejo + refracción
-    (diffuse + specular) * (1.0 - reflectivity - transparency)
-        + (reflect_color * reflectivity)
-        + (refract_color * transparency)
+    final_color
 }
 
 fn render(
     framebuffer: &mut Framebuffer,
     objects: &[Box<dyn RayIntersect>],
     camera: &Camera,
-    light: &Light,
-    use_normal_map: bool, // Añade este parámetro
+    lights: &[Light], // Cambiar a un vector de luces
+    use_normal_map: bool,
 ) {
     let width = framebuffer.width;
     let height = framebuffer.height;
@@ -181,7 +173,7 @@ fn render(
                     &camera.eye,
                     &ray_direction,
                     objects,
-                    light,
+                    lights,
                     0,
                     use_normal_map,
                 );
@@ -245,11 +237,16 @@ fn main() {
         up: Vec3::new(0.0, 8.0, 0.0),     // Vector "arriba" de la cámara
     };
 
-    let mut light = Light::new(
-        Vec3::new(5.0, 10.0, 5.0),
-        Color::new(255, 255, 255), // Color blanco para la luz
-        2.0,                       // Intensidad de la luz
+    // Definir múltiples luces
+    let light1 = Light::new(Vec3::new(5.0, 10.0, 5.0), Color::new(255, 255, 255), 2.0);
+
+    let light2 = Light::new(
+        Vec3::new(5.0, 10.0, -5.0),
+        Color::new(255, 100, 100), // Luz rojiza
+        1.0,
     );
+
+    let mut lights = vec![light1, light2];
 
     let material_con_textura = Material::new(
         Color::new(255, 255, 255),
@@ -586,35 +583,34 @@ fn main() {
             needs_render = true;
         }
 
-        // Actualizar la posición de la luz
-        light.position.x = 10.0 * angle.cos();
-        light.position.z = 10.0 * angle.sin();
-        light.position.y = 10.0 * angle.sin(); // Para que suba y baje simulando el día y la noche
+        // Actualizar la posición y el color de las múltiples luces
+        for light in &mut lights {
+            light.position.x = 10.0 * angle.cos();
+            light.position.z = 10.0 * angle.sin();
+            light.position.y = 10.0 * angle.sin();
 
-        // Cambiar el color de la luz dependiendo de la altura (día o noche)
-        if light.position.y > 0.0 {
-            // Luz cálida para el día
-            let intensity_factor = (light.position.y / 10.0).clamp(0.0, 1.0);
-            light.color = Color::new(
-                (255.0 * intensity_factor) as i32,
-                (223.0 * intensity_factor) as i32,
-                (191.0 * intensity_factor) as i32,
-            );
-            light.intensity = 2.0 * intensity_factor; // Ajustar la intensidad
-        } else {
-            // Luz fría para la noche
-            let intensity_factor = (-light.position.y / 10.0).clamp(0.0, 1.0);
-            light.color = Color::new(
-                (64.0 * intensity_factor) as i32,
-                (96.0 * intensity_factor) as i32,
-                (255.0 * intensity_factor) as i32,
-            );
-            light.intensity = 0.5 * intensity_factor; // Menor intensidad durante la noche
+            if light.position.y > 0.0 {
+                let intensity_factor = (light.position.y / 10.0).clamp(0.0, 1.0);
+                light.color = Color::new(
+                    (255.0 * intensity_factor) as i32,
+                    (223.0 * intensity_factor) as i32,
+                    (191.0 * intensity_factor) as i32,
+                );
+                light.intensity = 2.0 * intensity_factor;
+            } else {
+                let intensity_factor = (-light.position.y / 10.0).clamp(0.0, 1.0);
+                light.color = Color::new(
+                    (64.0 * intensity_factor) as i32,
+                    (96.0 * intensity_factor) as i32,
+                    (255.0 * intensity_factor) as i32,
+                );
+                light.intensity = 0.5 * intensity_factor;
+            }
         }
 
         // Solo renderiza si hubo cambios
         if needs_render {
-            render(&mut framebuffer, &objects, &camera, &light, use_normal_map);
+            render(&mut framebuffer, &objects, &camera, &lights, use_normal_map);
             needs_render = false;
         }
 

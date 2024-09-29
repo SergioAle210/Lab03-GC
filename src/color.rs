@@ -1,5 +1,5 @@
 use std::fmt;
-use std::ops::{Add, Mul};
+use std::ops::{Add, AddAssign, Mul};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Color {
@@ -59,6 +59,15 @@ impl Add for Color {
             g: self.g.saturating_add(other.g),
             b: self.b.saturating_add(other.b),
         }
+    }
+}
+
+// Implementar el trait AddAssign para Color
+impl AddAssign for Color {
+    fn add_assign(&mut self, other: Self) {
+        self.r += other.r;
+        self.g += other.g;
+        self.b += other.b;
     }
 }
 
