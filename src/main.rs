@@ -24,6 +24,10 @@ use std::sync::Arc; // Importa tu nuevo módulo
 static WALL1: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/OIP.jpeg")));
 static LADRILLOS: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/ladrillos.png")));
 static WATER: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/WATER.jpg")));
+static LADRILLOS_NEGROS: Lazy<Arc<Texture>> =
+    Lazy::new(|| Arc::new(Texture::new("assets/ladrillos_negros.png")));
+static SUELO: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/suelo.png")));
+static BRICKS: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/Bricks.png")));
 
 fn reflect(incident: &Vec3, normal: &Vec3) -> Vec3 {
     incident - 2.0 * incident.dot(normal) * normal
@@ -221,63 +225,262 @@ fn main() {
         Some(LADRILLOS.clone()),
     );
 
-    let rubber = Material::new(
-        Color::new(150, 40, 40), // Un rojo más vivo para que el caucho sea más visible
-        10.0,                    // Menor especularidad, ya que el caucho no es tan brillante
-        [0.8, 0.2, 0.1, 0.0],    // Más difuso, casi sin reflexión y sin transparencia
-        1.1,                     // Índice de refracción del caucho
-        None,
-    );
-
-    let ivory = Material::new(
-        Color::new(220, 220, 200), // Un tono más claro y cálido para el marfil
-        30.0,                      // Moderada especularidad
-        [0.5, 0.4, 0.3, 0.0], // Mezcla equilibrada de componentes difusos y especulares, sin transparencia
-        1.3,                  // Índice de refracción del marfil
-        None,
-    );
-
-    let mirror = Material::new(
-        Color::new(255, 255, 255), // Color base blanco
-        1000.0,                    // Alta especularidad para un reflejo casi perfecto
-        [0.0, 1.0, 0.9, 0.0],      // Casi todo es reflexión especular
-        1.0,                       // Un índice de refracción estándar, ya que es un espejo
-        None,
-    );
-
-    let glass = Material::new(
-        Color::new(200, 200, 255),
-        125.0,
-        [0.0, 0.5, 0.1, 0.8], // Difusa, especular, reflejo, transparencia
-        1.5,                  // Índice de refracción típico del vidrio
-        None,
-    );
-
     let water = Material::new(
         Color::new(200, 200, 255),
         125.0,
-        [0.0, 0.5, 0.9, 0.9], // Difusa, especular, reflejo, transparencia
+        [0.0, 0.5, 0.7, 0.5], // Difusa, especular, reflejo, transparencia
         1.33,                 // Índice de refracción del agua
         Some(WATER.clone()),
     );
 
-    let textured_cuboid = Cuboid::new(
-        Vec3::new(0.0, 0.0, 0.0),     // Centro del cubo
-        1.0,                          // Ancho del cubo
-        1.0,                          // Altura del cubo
-        1.0,                          // Profundidad del cubo
-        material_con_textura.clone(), // Material con textura
+    let ladrillos_neg = Material::new(
+        Color::new(255, 255, 255),
+        500.0,
+        [0.8, 0.2, 0.0, 0.1], // Difusa, especular, reflejo, transparencia
+        1.5,
+        Some(LADRILLOS_NEGROS.clone()),
     );
 
+    let suelo = Material::new(
+        Color::new(128, 128, 128), // Color gris para el suelo
+        100.0,                     // Menor reflectividad que ladrillos_neg
+        [0.6, 0.3, 0.1, 0.0],      // Coeficientes de reflexión diferentes
+        1.0,                       // Índice de refracción diferente
+        Some(SUELO.clone()),       // Textura del suelo
+    );
+
+    let texture_bricks = Material::new(
+        Color::new(255, 255, 255), // Color blanco para los ladrillos
+        250.0,                     // Alta reflectividad
+        [0.9, 0.3, 0.0, 0.0],      // Coeficientes de reflexión
+        1.0,                       // Índice de refracción
+        Some(BRICKS.clone()),      // Textura de los ladrillos
+    );
+
+    // Agua compuesta por 4 cubos
     let cuboid1 = Cuboid::new(
-        Vec3::new(-1.5, 0.0, 0.0), // Centro del cubo
-        0.5,                       // Ancho del cubo
-        0.5,                       // Altura del cubo
-        0.5,                       // Profundidad del cubo
+        Vec3::new(-1.0, 0.0, 0.0), // Centro del cubo
+        1.0,                       // Ancho del cubo
+        1.0,                       // Altura del cubo
+        1.0,                       // Profundidad del cubo
         water.clone(),             // Material de caucho
     );
 
-    let objects: Vec<Box<dyn RayIntersect>> = vec![Box::new(textured_cuboid), Box::new(cuboid1)];
+    let cuboid2 = Cuboid::new(
+        Vec3::new(-2.0, 0.0, 0.0), // Centro del cubo
+        1.0,                       // Ancho del cubo
+        1.0,                       // Altura del cubo
+        1.0,                       // Profundidad del cubo
+        water.clone(),             // Material de caucho
+    );
+
+    let cuboid3 = Cuboid::new(
+        Vec3::new(-1.0, 0.0, 1.0), // Centro del cubo
+        1.0,                       // Ancho del cubo
+        1.0,                       // Altura del cubo
+        1.0,                       // Profundidad del cubo
+        water.clone(),             // Material de caucho
+    );
+
+    let cuboid4 = Cuboid::new(
+        Vec3::new(-2.0, 0.0, 1.0), // Centro del cubo
+        1.0,                       // Ancho del cubo
+        1.0,                       // Altura del cubo
+        1.0,                       // Profundidad del cubo
+        water.clone(),             // Material de caucho
+    );
+
+    // Columnas de ladrillos
+    let cuboid5 = Cuboid::new(
+        Vec3::new(0.0, 0.0, -1.0), // Centro del cubo
+        1.0,                       // Ancho del cubo
+        1.0,                       // Altura del cubo
+        1.0,                       // Profundidad del cubo
+        ladrillos_neg.clone(),     // Material de caucho
+    );
+
+    let cuboid6: Cuboid = Cuboid::new(
+        Vec3::new(0.0, 1.0, -1.0), // Centro del cubo
+        1.0,                       // Ancho del cubo
+        1.0,                       // Altura del cubo
+        1.0,                       // Profundidad del cubo
+        ladrillos_neg.clone(),     // Material de caucho
+    );
+
+    let cuboid7: Cuboid = Cuboid::new(
+        Vec3::new(0.0, 2.0, -1.0), // Centro del cubo
+        1.0,                       // Ancho del cubo
+        1.0,                       // Altura del cubo
+        1.0,                       // Profundidad del cubo
+        ladrillos_neg.clone(),     // Material de caucho
+    );
+
+    let cuboid8: Cuboid = Cuboid::new(
+        Vec3::new(0.0, 0.0, 2.0), // Centro del cubo
+        1.0,                      // Ancho del cubo
+        1.0,                      // Altura del cubo
+        1.0,                      // Profundidad del cubo
+        ladrillos_neg.clone(),    // Material de caucho
+    );
+
+    let cuboid9: Cuboid = Cuboid::new(
+        Vec3::new(0.0, 1.0, 2.0), // Centro del cubo
+        1.0,                      // Ancho del cubo
+        1.0,                      // Altura del cubo
+        1.0,                      // Profundidad del cubo
+        ladrillos_neg.clone(),    // Material de caucho
+    );
+
+    let cuboid10: Cuboid = Cuboid::new(
+        Vec3::new(0.0, 2.0, 2.0), // Centro del cubo
+        1.0,                      // Ancho del cubo
+        1.0,                      // Altura del cubo
+        1.0,                      // Profundidad del cubo
+        ladrillos_neg.clone(),    // Material de caucho
+    );
+
+    let cuboid11: Cuboid = Cuboid::new(
+        Vec3::new(-3.0, 0.0, 2.0), // Centro del cubo
+        1.0,                       // Ancho del cubo
+        1.0,                       // Altura del cubo
+        1.0,                       // Profundidad del cubo
+        ladrillos_neg.clone(),     // Material de caucho
+    );
+
+    let cuboid12: Cuboid = Cuboid::new(
+        Vec3::new(-3.0, 1.0, 2.0), // Centro del cubo
+        1.0,                       // Ancho del cubo
+        1.0,                       // Altura del cubo
+        1.0,                       // Profundidad del cubo
+        ladrillos_neg.clone(),     // Material de caucho
+    );
+
+    let cuboid13: Cuboid = Cuboid::new(
+        Vec3::new(-3.0, 2.0, 2.0), // Centro del cubo
+        1.0,                       // Ancho del cubo
+        1.0,                       // Altura del cubo
+        1.0,                       // Profundidad del cubo
+        ladrillos_neg.clone(),     // Material de caucho
+    );
+
+    let cuboid14: Cuboid = Cuboid::new(
+        Vec3::new(-3.0, 0.0, -1.0), // Centro del cubo
+        1.0,                        // Ancho del cubo
+        1.0,                        // Altura del cubo
+        1.0,                        // Profundidad del cubo
+        ladrillos_neg.clone(),      // Material de caucho
+    );
+
+    let cuboid15: Cuboid = Cuboid::new(
+        Vec3::new(-3.0, 1.0, -1.0), // Centro del cubo
+        1.0,                        // Ancho del cubo
+        1.0,                        // Altura del cubo
+        1.0,                        // Profundidad del cubo
+        ladrillos_neg.clone(),      // Material de caucho
+    );
+
+    let cuboid16: Cuboid = Cuboid::new(
+        Vec3::new(-3.0, 2.0, -1.0), // Centro del cubo
+        1.0,                        // Ancho del cubo
+        1.0,                        // Altura del cubo
+        1.0,                        // Profundidad del cubo
+        ladrillos_neg.clone(),      // Material de caucho
+    );
+
+    // Suelo
+    let cuboid17: Cuboid = Cuboid::new(
+        Vec3::new(0.0, 0.0, 0.0), // Centro del cubo
+        1.0,                      // Ancho del cubo
+        1.0,                      // Altura del cubo
+        1.0,                      // Profundidad del cubo
+        texture_bricks.clone(),   // Material de caucho
+    );
+
+    let cuboid18: Cuboid = Cuboid::new(
+        Vec3::new(0.0, 0.0, 1.0), // Centro del cubo
+        1.0,                      // Ancho del cubo
+        1.0,                      // Altura del cubo
+        1.0,                      // Profundidad del cubo
+        suelo.clone(),            // Material de caucho
+    );
+
+    let cuboid19: Cuboid = Cuboid::new(
+        Vec3::new(-1.0, 0.0, 2.0),    // Centro del cubo
+        1.0,                          // Ancho del cubo
+        1.0,                          // Altura del cubo
+        1.0,                          // Profundidad del cubo
+        material_con_textura.clone(), // Material de caucho
+    );
+
+    let cuboid20: Cuboid = Cuboid::new(
+        Vec3::new(-2.0, 0.0, 2.0), // Centro del cubo
+        1.0,                       // Ancho del cubo
+        1.0,                       // Altura del cubo
+        1.0,                       // Profundidad del cubo
+        suelo.clone(),             // Material de caucho
+    );
+
+    let cuboid21: Cuboid = Cuboid::new(
+        Vec3::new(-3.0, 0.0, 0.0), // Centro del cubo
+        1.0,                       // Ancho del cubo
+        1.0,                       // Altura del cubo
+        1.0,                       // Profundidad del cubo
+        texture_bricks.clone(),    // Material de caucho
+    );
+
+    let cuboid22: Cuboid = Cuboid::new(
+        Vec3::new(-3.0, 0.0, 1.0),    // Centro del cubo
+        1.0,                          // Ancho del cubo
+        1.0,                          // Altura del cubo
+        1.0,                          // Profundidad del cubo
+        material_con_textura.clone(), // Material de caucho
+    );
+
+    let cuboid23: Cuboid = Cuboid::new(
+        Vec3::new(-1.0, 0.0, -1.0), // Centro del cubo
+        1.0,                        // Ancho del cubo
+        1.0,                        // Altura del cubo
+        1.0,                        // Profundidad del cubo
+        suelo.clone(),              // Material de caucho
+    );
+
+    let cuboid24: Cuboid = Cuboid::new(
+        Vec3::new(-2.0, 0.0, -1.0), // Centro del cubo
+        1.0,                        // Ancho del cubo
+        1.0,                        // Altura del cubo
+        1.0,                        // Profundidad del cubo
+        texture_bricks.clone(),     // Material de caucho
+    );
+
+    let objects: Vec<Box<dyn RayIntersect>> = vec![
+        // Agua
+        Box::new(cuboid1),
+        Box::new(cuboid2),
+        Box::new(cuboid3),
+        Box::new(cuboid4),
+        // Columnas de ladrillos
+        Box::new(cuboid5),
+        Box::new(cuboid6),
+        Box::new(cuboid7),
+        Box::new(cuboid8),
+        Box::new(cuboid9),
+        Box::new(cuboid10),
+        Box::new(cuboid11),
+        Box::new(cuboid12),
+        Box::new(cuboid13),
+        Box::new(cuboid14),
+        Box::new(cuboid15),
+        Box::new(cuboid16),
+        // Suelo
+        Box::new(cuboid17),
+        Box::new(cuboid18),
+        Box::new(cuboid19),
+        Box::new(cuboid20),
+        Box::new(cuboid21),
+        Box::new(cuboid22),
+        Box::new(cuboid23),
+        Box::new(cuboid24),
+    ];
 
     let width = 1300; // Reduce el tamaño a la mitad
     let height = 900;
