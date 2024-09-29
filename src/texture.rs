@@ -27,7 +27,9 @@ impl Texture {
     }
 
     pub fn get_pixel(&self, x: usize, y: usize) -> Color {
-        let pixel = self.image.get_pixel(x as u32, y as u32);
+        let clamped_x = x.min((self.width - 1) as usize);
+        let clamped_y = y.min((self.height - 1) as usize);
+        let pixel = self.image.get_pixel(clamped_x as u32, clamped_y as u32);
         Color::new(pixel[0] as i32, pixel[1] as i32, pixel[2] as i32)
     }
 }
