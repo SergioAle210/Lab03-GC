@@ -5,13 +5,11 @@ mod framebuffer;
 mod light;
 mod material;
 mod ray_intersect;
-mod sphere;
 mod texture; // Importa tu nuevo módulo
 
 use crate::color::Color;
 use crate::framebuffer::Framebuffer;
 use crate::ray_intersect::{Intersect, RayIntersect};
-use crate::sphere::Sphere;
 use crate::texture::Texture;
 use camera::Camera;
 use cuboid::Cuboid;
@@ -25,6 +23,7 @@ use std::sync::Arc; // Importa tu nuevo módulo
 
 static WALL1: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/OIP.jpeg")));
 static LADRILLOS: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/ladrillos.png")));
+static WATER: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/WATER.jpg")));
 
 fn reflect(incident: &Vec3, normal: &Vec3) -> Vec3 {
     incident - 2.0 * incident.dot(normal) * normal
@@ -57,6 +56,9 @@ fn cast_ray(
     if !closest_intersect.is_intersecting {
         return Color::new(0, 90, 150); // Retornar el color de fondo si no hay intersección
     }
+
+    let bias = 0.01; // Increase the bias to ensure no z-fighting
+    closest_intersect.point += closest_intersect.normal * bias;
 
     // Obtener el color difuso del material, considerando si tiene una textura o es un color plano
     let diffuse_color = closest_intersect
@@ -97,7 +99,6 @@ fn cast_ray(
     let mut reflect_color = Color::new(0, 0, 0); // Por defecto es negro
     let reflectivity = closest_intersect.material.albedo[2];
     if reflectivity > 0.0 {
-        let bias = f32::EPSILON.max(0.01 * closest_intersect.distance); // Ajusta el desplazamiento
         let reflect_dir = reflect(&ray_direction, &closest_intersect.normal).normalize();
         let reflect_origin = closest_intersect.point + closest_intersect.normal * bias;
         reflect_color = cast_ray(&reflect_origin, &reflect_dir, objects, light, depth + 1);
@@ -107,7 +108,6 @@ fn cast_ray(
     let mut refract_color = Color::new(0, 0, 0); // Por defecto es negro
     let transparency = closest_intersect.material.albedo[3];
     if transparency > 0.0 {
-        let bias = f32::EPSILON.max(0.01 * closest_intersect.distance); // Ajusta el desplazamiento
         let refract_dir = refract(
             &ray_direction,
             &closest_intersect.normal,
@@ -154,7 +154,7 @@ fn render(
 
 fn cast_shadow(intersect: &Intersect, light: &Light, objects: &[Box<dyn RayIntersect>]) -> f32 {
     let light_dir = (light.position - intersect.point).normalize();
-    let bias = 0.05; // Ajusta el desplazamiento para evitar acné
+    let bias = 0.001; // Use the same bias value as in cast_ray
     let shadow_ray_origin = intersect.point + intersect.normal * bias;
     let mut shadow_intensity = 0.0;
     let light_distance = (light.position - shadow_ray_origin).magnitude();
@@ -218,7 +218,7 @@ fn main() {
         500.0,
         [0.8, 0.2, 0.0, 0.0],
         1.5,
-        Some(WALL1.clone()),
+        Some(LADRILLOS.clone()),
     );
 
     let rubber = Material::new(
@@ -253,35 +253,31 @@ fn main() {
         None,
     );
 
+    let water = Material::new(
+        Color::new(200, 200, 255),
+        125.0,
+        [0.0, 0.5, 0.9, 0.9], // Difusa, especular, reflejo, transparencia
+        1.33,                 // Índice de refracción del agua
+        Some(WATER.clone()),
+    );
+
     let textured_cuboid = Cuboid::new(
-        Vec3::new(0.0, -0.5, -3.0),   // Centro del cubo
+        Vec3::new(0.0, 0.0, 0.0),     // Centro del cubo
         1.0,                          // Ancho del cubo
         1.0,                          // Altura del cubo
         1.0,                          // Profundidad del cubo
         material_con_textura.clone(), // Material con textura
     );
-    /*
-    let objects = vec![
-        // Esferas de ejemplo
-        Sphere {
-            center: Vec3::new(0.0, 0.0, 0.0),
-            radius: 0.8,
-            material: material_con_textura,
-        },
-        Sphere {
-            center: Vec3::new(-2.2, 1.8, -3.0),
-            radius: 0.8,
-            material: rubber,
-        },
-        Sphere {
-            center: Vec3::new(2.5, 0.5, -4.0), // Posición de la esfera espejo
-            radius: 0.8,                       // Radio de la esfera espejo
-            material: mirror,                  // Material de espejo
-        },
-    ];
-     */
 
-    let objects: Vec<Box<dyn RayIntersect>> = vec![Box::new(textured_cuboid)];
+    let cuboid1 = Cuboid::new(
+        Vec3::new(-1.5, 0.0, 0.0), // Centro del cubo
+        0.5,                       // Ancho del cubo
+        0.5,                       // Altura del cubo
+        0.5,                       // Profundidad del cubo
+        water.clone(),             // Material de caucho
+    );
+
+    let objects: Vec<Box<dyn RayIntersect>> = vec![Box::new(textured_cuboid), Box::new(cuboid1)];
 
     let width = 1300; // Reduce el tamaño a la mitad
     let height = 900;
