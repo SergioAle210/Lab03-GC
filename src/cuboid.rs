@@ -1,7 +1,6 @@
 use crate::material::Material;
 use crate::ray_intersect::{Intersect, RayIntersect};
-use nalgebra_glm::{rotate, translate, Mat4, Vec3};
-use std::f32::consts::PI;
+use nalgebra_glm::Vec3;
 
 pub struct Cuboid {
     pub center: Vec3,
@@ -22,11 +21,39 @@ impl Cuboid {
         }
     }
 
-    pub fn get_uv(&self, point: &Vec3) -> (f32, f32) {
-        let local_point = point - self.center;
-        let u = (local_point.x / self.width) + 0.5;
-        let v = (local_point.y / self.height) + 0.5;
-        (u, v)
+    fn get_uv(&self, point: &Vec3, normal: &Vec3) -> (f32, f32) {
+        if normal.x > 0.9 {
+            // Right face
+            let u = (point.z - (self.center.z - self.depth / 2.0)) / self.depth;
+            let v = (point.y - (self.center.y - self.height / 2.0)) / self.height;
+            return (u.clamp(0.0, 1.0), v.clamp(0.0, 1.0));
+        } else if normal.x < -0.9 {
+            // Left face
+            let u = (point.z - (self.center.z - self.depth / 2.0)) / self.depth;
+            let v = (point.y - (self.center.y - self.height / 2.0)) / self.height;
+            return (u.clamp(0.0, 1.0), v.clamp(0.0, 1.0));
+        } else if normal.y > 0.9 {
+            // Top face
+            let u = (point.x - (self.center.x - self.width / 2.0)) / self.width;
+            let v = (point.z - (self.center.z - self.depth / 2.0)) / self.depth;
+            return (u.clamp(0.0, 1.0), v.clamp(0.0, 1.0));
+        } else if normal.y < -0.9 {
+            // Bottom face
+            let u = (point.x - (self.center.x - self.width / 2.0)) / self.width;
+            let v = (point.z - (self.center.z - self.depth / 2.0)) / self.depth;
+            return (u.clamp(0.0, 1.0), v.clamp(0.0, 1.0));
+        } else if normal.z > 0.9 {
+            // Front face
+            let u = (point.x - (self.center.x - self.width / 2.0)) / self.width;
+            let v = (point.y - (self.center.y - self.height / 2.0)) / self.height;
+            return (u.clamp(0.0, 1.0), v.clamp(0.0, 1.0));
+        } else if normal.z < -0.9 {
+            // Back face
+            let u = (point.x - (self.center.x - self.width / 2.0)) / self.width;
+            let v = (point.y - (self.center.y - self.height / 2.0)) / self.height;
+            return (u.clamp(0.0, 1.0), v.clamp(0.0, 1.0));
+        }
+        (0.0, 0.0) // Default case
     }
 }
 
@@ -35,57 +62,78 @@ impl RayIntersect for Cuboid {
         let min = self.center - Vec3::new(self.width / 2.0, self.height / 2.0, self.depth / 2.0);
         let max = self.center + Vec3::new(self.width / 2.0, self.height / 2.0, self.depth / 2.0);
 
-        let mut t_min = (min.x - ray_origin.x) / ray_direction.x;
-        let mut t_max = (max.x - ray_origin.x) / ray_direction.x;
+        let mut tmin = (min.x - ray_origin.x) / ray_direction.x;
+        let mut tmax = (max.x - ray_origin.x) / ray_direction.x;
 
-        if t_min > t_max {
-            std::mem::swap(&mut t_min, &mut t_max);
+        if tmin > tmax {
+            std::mem::swap(&mut tmin, &mut tmax);
         }
 
-        let mut t_ymin = (min.y - ray_origin.y) / ray_direction.y;
-        let mut t_ymax = (max.y - ray_origin.y) / ray_direction.y;
+        let mut tymin = (min.y - ray_origin.y) / ray_direction.y;
+        let mut tymax = (max.y - ray_origin.y) / ray_direction.y;
 
-        if t_ymin > t_ymax {
-            std::mem::swap(&mut t_ymin, &mut t_ymax);
+        if tymin > tymax {
+            std::mem::swap(&mut tymin, &mut tymax);
         }
 
-        if t_min > t_ymax || t_ymin > t_max {
+        if (tmin > tymax) || (tymin > tmax) {
             return Intersect::empty();
         }
 
-        if t_ymin > t_min {
-            t_min = t_ymin;
-        }
-        if t_ymax < t_max {
-            t_max = t_ymax;
+        if tymin > tmin {
+            tmin = tymin;
         }
 
-        let mut t_zmin = (min.z - ray_origin.z) / ray_direction.z;
-        let mut t_zmax = (max.z - ray_origin.z) / ray_direction.z;
-
-        if t_zmin > t_zmax {
-            std::mem::swap(&mut t_zmin, &mut t_zmax);
+        if tymax < tmax {
+            tmax = tymax;
         }
 
-        if t_min > t_zmax || t_zmin > t_max {
+        let mut tzmin = (min.z - ray_origin.z) / ray_direction.z;
+        let mut tzmax = (max.z - ray_origin.z) / ray_direction.z;
+
+        if tzmin > tzmax {
+            std::mem::swap(&mut tzmin, &mut tzmax);
+        }
+
+        if (tmin > tzmax) || (tzmin > tmax) {
             return Intersect::empty();
         }
 
-        if t_zmin > t_min {
-            t_min = t_zmin;
-        }
-        if t_zmax < t_max {
-            t_max = t_zmax;
+        if tzmin > tmin {
+            tmin = tzmin;
         }
 
-        if t_min < 0.0 {
+        if tzmax < tmax {
+            tmax = tzmax;
+        }
+
+        let distance = tmin;
+
+        if distance < 0.0 {
             return Intersect::empty();
         }
 
-        let hit_point = ray_origin + ray_direction * t_min;
-        let normal = (hit_point - self.center).normalize();
-        let (u, v) = self.get_uv(&hit_point);
+        // Calculate the intersection point and normal
+        let hit_point = ray_origin + ray_direction * distance;
+        let mut normal = Vec3::zeros();
 
-        Intersect::new(hit_point, normal, t_min, self.material.clone(), u, v)
+        if (hit_point.x - min.x).abs() < f32::EPSILON {
+            normal = Vec3::new(-1.0, 0.0, 0.0); // left face
+        } else if (hit_point.x - max.x).abs() < f32::EPSILON {
+            normal = Vec3::new(1.0, 0.0, 0.0); // right face
+        } else if (hit_point.y - min.y).abs() < f32::EPSILON {
+            normal = Vec3::new(0.0, -1.0, 0.0); // bottom face
+        } else if (hit_point.y - max.y).abs() < f32::EPSILON {
+            normal = Vec3::new(0.0, 1.0, 0.0); // top face
+        } else if (hit_point.z - min.z).abs() < f32::EPSILON {
+            normal = Vec3::new(0.0, 0.0, -1.0); // back face
+        } else if (hit_point.z - max.z).abs() < f32::EPSILON {
+            normal = Vec3::new(0.0, 0.0, 1.0); // front face
+        }
+
+        // Get UV coordinates based on the hit point and face normal
+        let (u, v) = self.get_uv(&hit_point, &normal);
+
+        Intersect::new(hit_point, normal, distance, self.material.clone(), u, v)
     }
 }
