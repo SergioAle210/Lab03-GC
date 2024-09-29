@@ -40,6 +40,7 @@ fn cast_ray(
     objects: &[Box<dyn RayIntersect>],
     light: &Light,
     depth: u32,
+    use_normal_map: bool, // Añade un parámetro para controlar si se usa el mapeo de normales
 ) -> Color {
     // Limitar la recursión a una cierta profundidad
     if depth > 3 {
@@ -65,10 +66,20 @@ fn cast_ray(
     let bias = 0.01; // Increase the bias to ensure no z-fighting
     closest_intersect.point += closest_intersect.normal * bias;
 
-    // Obtener el color difuso del material, considerando si tiene una textura o es un color plano
-    let diffuse_color = closest_intersect
-        .material
-        .get_diffuse_color(closest_intersect.u, closest_intersect.v);
+    let normal = closest_intersect.normal;
+
+    // Determina si se debe usar el color basado en la normal o la textura
+    let diffuse_color = if use_normal_map {
+        // Convertir las componentes de la normal de [-1, 1] a [0, 255] para los valores RGB
+        let r = ((normal.x + 1.0) * 0.5 * 255.0) as i32;
+        let g = ((normal.y + 1.0) * 0.5 * 255.0) as i32;
+        let b = ((normal.z + 1.0) * 0.5 * 255.0) as i32;
+        Color::new(r, g, b)
+    } else {
+        closest_intersect
+            .material
+            .get_diffuse_color(closest_intersect.u, closest_intersect.v)
+    };
 
     // Calcular la intensidad de la sombra
     let shadow_intensity = cast_shadow(&closest_intersect, light, objects);
@@ -78,7 +89,7 @@ fn cast_ray(
     let light_dir = (light.position - closest_intersect.point).normalize();
 
     // Calcular la intensidad difusa utilizando el producto punto
-    let diffuse_intensity = closest_intersect.normal.dot(&light_dir).max(0.0).min(1.0);
+    let diffuse_intensity = normal.dot(&light_dir).max(0.0).min(1.0);
     let diffuse = diffuse_color
         * closest_intersect.material.albedo[0] // Albedo difuso
         * diffuse_intensity
@@ -88,7 +99,7 @@ fn cast_ray(
     let view_dir = (ray_origin - closest_intersect.point).normalize();
 
     // Calcular la dirección de reflexión de la luz
-    let reflect_dir = reflect(&-light_dir, &closest_intersect.normal);
+    let reflect_dir = reflect(&-light_dir, &normal);
 
     // Calcular la intensidad especular utilizando el producto punto elevado a la potencia especular del material
     let specular_intensity = view_dir
@@ -104,9 +115,16 @@ fn cast_ray(
     let mut reflect_color = Color::new(0, 0, 0); // Por defecto es negro
     let reflectivity = closest_intersect.material.albedo[2];
     if reflectivity > 0.0 {
-        let reflect_dir = reflect(&ray_direction, &closest_intersect.normal).normalize();
-        let reflect_origin = closest_intersect.point + closest_intersect.normal * bias;
-        reflect_color = cast_ray(&reflect_origin, &reflect_dir, objects, light, depth + 1);
+        let reflect_dir = reflect(&ray_direction, &normal).normalize();
+        let reflect_origin = closest_intersect.point + normal * bias;
+        reflect_color = cast_ray(
+            &reflect_origin,
+            &reflect_dir,
+            objects,
+            light,
+            depth + 1,
+            use_normal_map,
+        );
     }
 
     // Calcular la componente de refracción
@@ -115,11 +133,18 @@ fn cast_ray(
     if transparency > 0.0 {
         let refract_dir = refract(
             &ray_direction,
-            &closest_intersect.normal,
+            &normal,
             closest_intersect.material.refractive_index,
         );
-        let refract_origin = closest_intersect.point - closest_intersect.normal * bias;
-        refract_color = cast_ray(&refract_origin, &refract_dir, objects, light, depth + 1);
+        let refract_origin = closest_intersect.point - normal * bias;
+        refract_color = cast_ray(
+            &refract_origin,
+            &refract_dir,
+            objects,
+            light,
+            depth + 1,
+            use_normal_map,
+        );
     }
 
     // Combinación final del color: difuso + especular + reflejo + refracción
@@ -133,6 +158,7 @@ fn render(
     objects: &[Box<dyn RayIntersect>],
     camera: &Camera,
     light: &Light,
+    use_normal_map: bool, // Añade este parámetro
 ) {
     let width = framebuffer.width;
     let height = framebuffer.height;
@@ -151,7 +177,14 @@ fn render(
                 let world_direction = Vec3::new(screen_x, screen_y, -1.0);
                 let ray_direction = camera.basis_change(&world_direction);
 
-                let pixel_color = cast_ray(&camera.eye, &ray_direction, objects, light, 0);
+                let pixel_color = cast_ray(
+                    &camera.eye,
+                    &ray_direction,
+                    objects,
+                    light,
+                    0,
+                    use_normal_map,
+                );
                 row[x] = pixel_color;
             }
         });
@@ -485,6 +518,8 @@ fn main() {
 
     let mut angle = 1.0; // Ángulo para el movimiento de la luz
 
+    let mut use_normal_map = false;
+
     let width = 1300; // Reduce el tamaño a la mitad
     let height = 900;
     let mut framebuffer = Framebuffer::new(width, height);
@@ -500,6 +535,8 @@ fn main() {
     });
 
     let mut needs_render = true;
+    let mut m_key_pressed = false;
+
     while window.is_open() && !window.is_key_down(minifb::Key::Escape) {
         if window.is_key_down(minifb::Key::Left) {
             camera.orbit(0.05, 0.0);
@@ -526,6 +563,17 @@ fn main() {
         if window.is_key_down(minifb::Key::S) {
             camera.zoom(0.1); // Alejar
             needs_render = true;
+        }
+
+        // Alternar entre normal map y textura con la tecla "M"
+        if window.is_key_down(minifb::Key::M) {
+            if !m_key_pressed {
+                use_normal_map = !use_normal_map;
+                m_key_pressed = true;
+                needs_render = true; // Forzar el renderizado después de cambiar
+            }
+        } else {
+            m_key_pressed = false; // Restablecer el estado de la tecla "M"
         }
 
         // Controlar el ciclo de día y noche con las teclas A y D
@@ -566,7 +614,7 @@ fn main() {
 
         // Solo renderiza si hubo cambios
         if needs_render {
-            render(&mut framebuffer, &objects, &camera, &light);
+            render(&mut framebuffer, &objects, &camera, &light, use_normal_map);
             needs_render = false;
         }
 
