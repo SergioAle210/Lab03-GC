@@ -309,9 +309,9 @@ fn main() {
 
     let cuboid7: Cuboid = Cuboid::new(
         Vec3::new(0.0, 2.0, -1.0), // Centro del cubo
-        1.0,                       // Ancho del cubo
-        1.0,                       // Altura del cubo
-        1.0,                       // Profundidad del cubo
+        0.5,                       // Ancho del cubo
+        0.5,                       // Altura del cubo
+        0.5,                       // Profundidad del cubo
         ladrillos_neg.clone(),     // Material de caucho
     );
 
@@ -333,9 +333,9 @@ fn main() {
 
     let cuboid10: Cuboid = Cuboid::new(
         Vec3::new(0.0, 2.0, 2.0), // Centro del cubo
-        1.0,                      // Ancho del cubo
-        1.0,                      // Altura del cubo
-        1.0,                      // Profundidad del cubo
+        0.5,                      // Ancho del cubo
+        0.5,                      // Altura del cubo
+        0.5,                      // Profundidad del cubo
         ladrillos_neg.clone(),    // Material de caucho
     );
 
@@ -357,9 +357,9 @@ fn main() {
 
     let cuboid13: Cuboid = Cuboid::new(
         Vec3::new(-3.0, 2.0, 2.0), // Centro del cubo
-        1.0,                       // Ancho del cubo
-        1.0,                       // Altura del cubo
-        1.0,                       // Profundidad del cubo
+        0.5,                       // Ancho del cubo
+        0.5,                       // Altura del cubo
+        0.5,                       // Profundidad del cubo
         ladrillos_neg.clone(),     // Material de caucho
     );
 
@@ -381,9 +381,9 @@ fn main() {
 
     let cuboid16: Cuboid = Cuboid::new(
         Vec3::new(-3.0, 2.0, -1.0), // Centro del cubo
-        1.0,                        // Ancho del cubo
-        1.0,                        // Altura del cubo
-        1.0,                        // Profundidad del cubo
+        0.5,                        // Ancho del cubo
+        0.5,                        // Altura del cubo
+        0.5,                        // Profundidad del cubo
         ladrillos_neg.clone(),      // Material de caucho
     );
 
@@ -482,6 +482,8 @@ fn main() {
         Box::new(cuboid24),
     ];
 
+    let mut angle = 0.0; // Ángulo para el movimiento de la luz
+
     let width = 1300; // Reduce el tamaño a la mitad
     let height = 900;
     let mut framebuffer = Framebuffer::new(width, height);
@@ -497,7 +499,6 @@ fn main() {
     });
 
     let mut needs_render = true;
-
     while window.is_open() && !window.is_key_down(minifb::Key::Escape) {
         if window.is_key_down(minifb::Key::Left) {
             camera.orbit(0.05, 0.0);
@@ -513,6 +514,16 @@ fn main() {
         }
         if window.is_key_down(minifb::Key::Down) {
             camera.orbit(0.0, -0.05);
+            needs_render = true;
+        }
+
+        // Añadir control de zoom
+        if window.is_key_down(minifb::Key::W) {
+            camera.zoom(-0.1); // Acercar
+            needs_render = true;
+        }
+        if window.is_key_down(minifb::Key::S) {
+            camera.zoom(0.1); // Alejar
             needs_render = true;
         }
 

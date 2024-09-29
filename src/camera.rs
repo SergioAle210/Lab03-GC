@@ -57,4 +57,12 @@ impl Camera {
         // Actualizar la posición de la cámara
         self.eye = new_eye;
     }
+
+    pub fn zoom(&mut self, factor: f32) {
+        // Calcular el vector de la dirección desde la cámara hacia el centro
+        let direction = (self.center - self.eye).normalize();
+
+        // Ajustar la posición de la cámara en la dirección del centro
+        self.eye += direction * factor;
+    }
 }
