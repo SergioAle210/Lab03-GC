@@ -16,6 +16,7 @@ use cuboid::Cuboid;
 use light::Light;
 use material::Material;
 use minifb::{Window, WindowOptions};
+use nalgebra::ComplexField;
 use nalgebra_glm::Vec3;
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
@@ -211,7 +212,7 @@ fn main() {
         up: Vec3::new(0.0, 8.0, 0.0),     // Vector "arriba" de la cámara
     };
 
-    let light = Light::new(
+    let mut light = Light::new(
         Vec3::new(5.0, 10.0, 5.0),
         Color::new(255, 255, 255), // Color blanco para la luz
         2.0,                       // Intensidad de la luz
@@ -482,7 +483,7 @@ fn main() {
         Box::new(cuboid24),
     ];
 
-    let mut angle = 0.0; // Ángulo para el movimiento de la luz
+    let mut angle = 1.0; // Ángulo para el movimiento de la luz
 
     let width = 1300; // Reduce el tamaño a la mitad
     let height = 900;
@@ -525,6 +526,42 @@ fn main() {
         if window.is_key_down(minifb::Key::S) {
             camera.zoom(0.1); // Alejar
             needs_render = true;
+        }
+
+        // Controlar el ciclo de día y noche con las teclas A y D
+        if window.is_key_down(minifb::Key::A) {
+            angle -= 0.05; // Girar la luz en sentido antihorario
+            needs_render = true;
+        }
+        if window.is_key_down(minifb::Key::D) {
+            angle += 0.05; // Girar la luz en sentido horario
+            needs_render = true;
+        }
+
+        // Actualizar la posición de la luz
+        light.position.x = 10.0 * angle.cos();
+        light.position.z = 10.0 * angle.sin();
+        light.position.y = 10.0 * angle.sin(); // Para que suba y baje simulando el día y la noche
+
+        // Cambiar el color de la luz dependiendo de la altura (día o noche)
+        if light.position.y > 0.0 {
+            // Luz cálida para el día
+            let intensity_factor = (light.position.y / 10.0).clamp(0.0, 1.0);
+            light.color = Color::new(
+                (255.0 * intensity_factor) as i32,
+                (223.0 * intensity_factor) as i32,
+                (191.0 * intensity_factor) as i32,
+            );
+            light.intensity = 2.0 * intensity_factor; // Ajustar la intensidad
+        } else {
+            // Luz fría para la noche
+            let intensity_factor = (-light.position.y / 10.0).clamp(0.0, 1.0);
+            light.color = Color::new(
+                (64.0 * intensity_factor) as i32,
+                (96.0 * intensity_factor) as i32,
+                (255.0 * intensity_factor) as i32,
+            );
+            light.intensity = 0.5 * intensity_factor; // Menor intensidad durante la noche
         }
 
         // Solo renderiza si hubo cambios
