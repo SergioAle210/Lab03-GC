@@ -1,6 +1,6 @@
 mod camera;
 mod color;
-mod cube;
+mod cuboid;
 mod framebuffer;
 mod light;
 mod material;
@@ -14,7 +14,7 @@ use crate::ray_intersect::{Intersect, RayIntersect};
 use crate::sphere::Sphere;
 use crate::texture::Texture;
 use camera::Camera;
-use cube::Cube;
+use cuboid::Cuboid;
 use light::Light;
 use material::Material;
 use minifb::{Window, WindowOptions};
@@ -24,6 +24,7 @@ use rayon::prelude::*;
 use std::sync::Arc; // Importa tu nuevo módulo
 
 static WALL1: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/OIP.jpeg")));
+static LADRILLOS: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/ladrillos.png")));
 
 fn reflect(incident: &Vec3, normal: &Vec3) -> Vec3 {
     incident - 2.0 * incident.dot(normal) * normal
@@ -32,7 +33,7 @@ fn reflect(incident: &Vec3, normal: &Vec3) -> Vec3 {
 fn cast_ray(
     ray_origin: &Vec3,
     ray_direction: &Vec3,
-    objects: &[Sphere],
+    objects: &[Box<dyn RayIntersect>],
     light: &Light,
     depth: u32,
 ) -> Color {
@@ -122,7 +123,12 @@ fn cast_ray(
         + (refract_color * transparency)
 }
 
-fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, light: &Light) {
+fn render(
+    framebuffer: &mut Framebuffer,
+    objects: &[Box<dyn RayIntersect>],
+    camera: &Camera,
+    light: &Light,
+) {
     let width = framebuffer.width;
     let height = framebuffer.height;
     let aspect_ratio = width as f32 / height as f32;
@@ -146,7 +152,7 @@ fn render(framebuffer: &mut Framebuffer, objects: &[Sphere], camera: &Camera, li
         });
 }
 
-fn cast_shadow(intersect: &Intersect, light: &Light, objects: &[Sphere]) -> f32 {
+fn cast_shadow(intersect: &Intersect, light: &Light, objects: &[Box<dyn RayIntersect>]) -> f32 {
     let light_dir = (light.position - intersect.point).normalize();
     let bias = 0.05; // Ajusta el desplazamiento para evitar acné
     let shadow_ray_origin = intersect.point + intersect.normal * bias;
@@ -247,6 +253,14 @@ fn main() {
         None,
     );
 
+    let textured_cuboid = Cuboid::new(
+        Vec3::new(0.0, -0.5, -3.0),   // Centro del cubo
+        1.0,                          // Ancho del cubo
+        1.0,                          // Altura del cubo
+        1.0,                          // Profundidad del cubo
+        material_con_textura.clone(), // Material con textura
+    );
+    /*
     let objects = vec![
         // Esferas de ejemplo
         Sphere {
@@ -265,6 +279,9 @@ fn main() {
             material: mirror,                  // Material de espejo
         },
     ];
+     */
+
+    let objects: Vec<Box<dyn RayIntersect>> = vec![Box::new(textured_cuboid)];
 
     let width = 1300; // Reduce el tamaño a la mitad
     let height = 900;
