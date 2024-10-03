@@ -23,7 +23,6 @@ use rayon::prelude::*;
 use std::sync::Arc; // Importa tu nuevo módulo
 use std::time::Instant;
 
-static WALL1: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/OIP.jpeg")));
 static LADRILLOS: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/ladrillos.png")));
 static WATER: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/WATER.jpg")));
 static LADRILLOS_NEGROS: Lazy<Arc<Texture>> =
