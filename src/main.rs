@@ -21,6 +21,7 @@ use nalgebra_glm::Vec3;
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use std::sync::Arc; // Importa tu nuevo módulo
+use std::time::Instant;
 
 static WALL1: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/OIP.jpeg")));
 static LADRILLOS: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/ladrillos.png")));
@@ -29,6 +30,7 @@ static LADRILLOS_NEGROS: Lazy<Arc<Texture>> =
     Lazy::new(|| Arc::new(Texture::new("assets/ladrillos_negros.png")));
 static SUELO: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/suelo.png")));
 static BRICKS: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/Bricks.png")));
+static LAVA: Lazy<Arc<Texture>> = Lazy::new(|| Arc::new(Texture::new("assets/Lava.jpg")));
 
 fn reflect(incident: &Vec3, normal: &Vec3) -> Vec3 {
     incident - 2.0 * incident.dot(normal) * normal
@@ -41,6 +43,7 @@ fn cast_ray(
     lights: &[Light], // Cambiar a un vector de luces
     depth: u32,
     use_normal_map: bool, // Añade un parámetro para controlar si se usa el mapeo de normales
+    time: f32,            // Añadimos el tiempo para animar texturas
 ) -> Color {
     if depth > 3 {
         return Color::new(0, 90, 150); // Color de fondo o "skybox"
@@ -74,7 +77,7 @@ fn cast_ray(
     } else {
         closest_intersect
             .material
-            .get_diffuse_color(closest_intersect.u, closest_intersect.v)
+            .get_diffuse_color(closest_intersect.u, closest_intersect.v, time)
     };
 
     let mut final_color = Color::new(0, 0, 0);
@@ -120,6 +123,7 @@ fn cast_ray(
             lights,
             depth + 1,
             use_normal_map,
+            time,
         );
         final_color += reflect_color * reflectivity;
     }
@@ -138,6 +142,7 @@ fn cast_ray(
             lights,
             depth + 1,
             use_normal_map,
+            time,
         );
         final_color += refract_color * transparency;
     }
@@ -151,6 +156,7 @@ fn render(
     camera: &Camera,
     lights: &[Light], // Cambiar a un vector de luces
     use_normal_map: bool,
+    time: f32, // Añadimos el tiempo para la animación
 ) {
     let width = framebuffer.width;
     let height = framebuffer.height;
@@ -176,6 +182,7 @@ fn render(
                     lights,
                     0,
                     use_normal_map,
+                    time, // Pasamos el tiempo
                 );
                 row[x] = pixel_color;
             }
@@ -231,6 +238,8 @@ fn refract(incident: &Vec3, normal: &Vec3, eta_t: f32) -> Vec3 {
 }
 
 fn main() {
+    let start_time = Instant::now(); // Inicia el temporizador
+
     let mut camera = Camera {
         eye: Vec3::new(0.0, 0.0, 5.0),    // Posición de la cámara
         center: Vec3::new(0.0, 0.0, 0.0), // Punto hacia el que está viendo la cámara
@@ -246,7 +255,7 @@ fn main() {
         1.0,
     );
 
-    let mut lights = vec![light1, light2];
+    let mut lights = vec![light1];
 
     let material_con_textura = Material::new(
         Color::new(255, 255, 255),
@@ -254,6 +263,7 @@ fn main() {
         [0.8, 0.2, 0.0, 0.0],
         1.5,
         Some(LADRILLOS.clone()),
+        None,
     );
 
     let water = Material::new(
@@ -262,6 +272,16 @@ fn main() {
         [0.0, 0.5, 0.7, 0.5], // Difusa, especular, reflejo, transparencia
         1.33,                 // Índice de refracción del agua
         Some(WATER.clone()),
+        Some((50.0, 50.0)),
+    );
+
+    let lava = Material::new(
+        Color::new(255, 100, 0),
+        500.0,
+        [0.8, 0.2, 0.0, 0.0], // Difusa, especular, reflejo, transparencia
+        1.5,
+        Some(LAVA.clone()),
+        Some((25.0, 50.0)),
     );
 
     let ladrillos_neg = Material::new(
@@ -270,6 +290,7 @@ fn main() {
         [0.8, 0.2, 0.0, 0.1], // Difusa, especular, reflejo, transparencia
         1.5,
         Some(LADRILLOS_NEGROS.clone()),
+        None,
     );
 
     let suelo = Material::new(
@@ -278,6 +299,7 @@ fn main() {
         [0.6, 0.3, 0.1, 0.0],      // Coeficientes de reflexión diferentes
         1.0,                       // Índice de refracción diferente
         Some(SUELO.clone()),       // Textura del suelo
+        None,
     );
 
     let texture_bricks = Material::new(
@@ -286,6 +308,7 @@ fn main() {
         [0.9, 0.3, 0.0, 0.0],      // Coeficientes de reflexión
         1.0,                       // Índice de refracción
         Some(BRICKS.clone()),      // Textura de los ladrillos
+        None,
     );
 
     // Agua compuesta por 4 cubos
@@ -483,6 +506,39 @@ fn main() {
         texture_bricks.clone(),     // Material de caucho
     );
 
+    // Lava
+    let cuboid25: Cuboid = Cuboid::new(
+        Vec3::new(0.0, 0.0, -2.0), // Centro del cubo
+        1.0,                       // Ancho del cubo
+        1.0,                       // Altura del cubo
+        1.0,                       // Profundidad del cubo
+        lava.clone(),              // Material de caucho
+    );
+
+    let cuboid26: Cuboid = Cuboid::new(
+        Vec3::new(-1.0, 0.0, -2.0), // Centro del cubo
+        1.0,                        // Ancho del cubo
+        1.0,                        // Altura del cubo
+        1.0,                        // Profundidad del cubo
+        lava.clone(),               // Material de caucho
+    );
+
+    let cuboid27: Cuboid = Cuboid::new(
+        Vec3::new(-2.0, 0.0, -2.0), // Centro del cubo
+        1.0,                        // Ancho del cubo
+        1.0,                        // Altura del cubo
+        1.0,                        // Profundidad del cubo
+        lava.clone(),               // Material de caucho
+    );
+
+    let cuboid28: Cuboid = Cuboid::new(
+        Vec3::new(-3.0, 0.0, -2.0), // Centro del cubo
+        1.0,                        // Ancho del cubo
+        1.0,                        // Altura del cubo
+        1.0,                        // Profundidad del cubo
+        lava.clone(),               // Material de caucho
+    );
+
     let objects: Vec<Box<dyn RayIntersect>> = vec![
         // Agua
         Box::new(cuboid1),
@@ -511,6 +567,11 @@ fn main() {
         Box::new(cuboid22),
         Box::new(cuboid23),
         Box::new(cuboid24),
+        // Lava
+        Box::new(cuboid25),
+        Box::new(cuboid26),
+        Box::new(cuboid27),
+        Box::new(cuboid28),
     ];
 
     let mut angle = 1.0; // Ángulo para el movimiento de la luz
@@ -535,6 +596,8 @@ fn main() {
     let mut m_key_pressed = false;
 
     while window.is_open() && !window.is_key_down(minifb::Key::Escape) {
+        let elapsed_time = start_time.elapsed().as_secs_f32();
+
         if window.is_key_down(minifb::Key::Left) {
             camera.orbit(0.05, 0.0);
             needs_render = true;
@@ -610,9 +673,27 @@ fn main() {
 
         // Solo renderiza si hubo cambios
         if needs_render {
-            render(&mut framebuffer, &objects, &camera, &lights, use_normal_map);
+            render(
+                &mut framebuffer,
+                &objects,
+                &camera,
+                &lights,
+                use_normal_map,
+                elapsed_time,
+            ); // Pasar el tiempo para animación
             needs_render = false;
         }
+
+        /*
+        render(
+                &mut framebuffer,
+                &objects,
+                &camera,
+                &lights,
+                use_normal_map,
+                elapsed_time,
+            ); // Pasar el tiempo para animación
+        */
 
         window
             .update_with_buffer(&framebuffer.to_u32_buffer(), width, height)
